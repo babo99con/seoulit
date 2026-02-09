@@ -8,7 +8,7 @@ import type {
 } from "../features/insurance/insuranceTypes";
 
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_PATIENTS_API_BASE_URL ?? "http://localhost:8081",
+  baseURL: process.env.NEXT_PUBLIC_PATIENTS_API_BASE_URL ?? "http://192.168.1.60:8081",
 });
 
 
