@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import MainLayout from "@/components/layout/MainLayout";
 import Link from "next/link";
@@ -16,6 +16,8 @@ import MedicalServicesOutlinedIcon from "@mui/icons-material/MedicalServicesOutl
 import FactCheckOutlinedIcon from "@mui/icons-material/FactCheckOutlined";
 import AdminPanelSettingsOutlinedIcon from "@mui/icons-material/AdminPanelSettingsOutlined";
 import BadgeOutlinedIcon from "@mui/icons-material/BadgeOutlined";
+import PersonSearchOutlinedIcon from "@mui/icons-material/PersonSearchOutlined";
+import MonetizationOnOutlinedIcon from "@mui/icons-material/MonetizationOnOutlined";
 
 const ROLES = [
   {
@@ -30,29 +32,47 @@ const ROLES = [
   {
     key: "nurse",
     label: "간호",
-    desc: "진료지원, 바이탈, 병동 모니터",
+    desc: "처치/바이탈/병동 모니터링",
     href: "/nurse",
     icon: <MedicalServicesOutlinedIcon />,
     tone:
       "linear-gradient(135deg, rgba(23, 162, 142, 0.22), rgba(23, 162, 142, 0))",
   },
   {
-    key: "staff",
-    label: "스탭",
-    desc: "스케줄/배정/부서 운영",
-    href: "/staff",
-    icon: <BadgeOutlinedIcon />,
-    tone:
-      "linear-gradient(135deg, rgba(24, 90, 158, 0.18), rgba(24, 90, 158, 0))",
-  },
-  {
     key: "reception",
-    label: "원무",
-    desc: "접수/수납/보험/환자관리",
+    label: "접수",
+    desc: "초진 등록/접수/예약",
     href: "/reception",
     icon: <FactCheckOutlinedIcon />,
     tone:
       "linear-gradient(135deg, rgba(217, 119, 6, 0.22), rgba(217, 119, 6, 0))",
+  },
+  {
+    key: "billing",
+    label: "수납",
+    desc: "수납/결제/보험 처리",
+    href: "/billing",
+    icon: <MonetizationOnOutlinedIcon />,
+    tone:
+      "linear-gradient(135deg, rgba(245, 158, 11, 0.22), rgba(245, 158, 11, 0))",
+  },
+  {
+    key: "patients",
+    label: "환자",
+    desc: "환자 목록/상세/기록",
+    href: "/patients",
+    icon: <PersonSearchOutlinedIcon />,
+    tone:
+      "linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(59, 130, 246, 0))",
+  },
+  {
+    key: "staff",
+    label: "스탭",
+    desc: "직원/근무/권한 배정",
+    href: "/staff",
+    icon: <BadgeOutlinedIcon />,
+    tone:
+      "linear-gradient(135deg, rgba(24, 90, 158, 0.18), rgba(24, 90, 158, 0))",
   },
   {
     key: "admin",
@@ -89,7 +109,7 @@ export default function HomePage() {
             <CardContent sx={{ p: 3.5 }}>
               <Stack spacing={1.5}>
                 <Chip
-                  label="Role-based"
+                  label="Role-based Workspace"
                   size="small"
                   sx={{
                     width: "fit-content",
@@ -98,10 +118,11 @@ export default function HomePage() {
                   }}
                 />
                 <Typography sx={{ fontSize: 24, fontWeight: 900 }}>
-                  병원관리 시스템 워크스페이스
+                  병원 업무 대시보드
                 </Typography>
                 <Typography sx={{ color: "var(--muted)" }}>
-                  의사/간호/원무/스탭/관리자 역할에 맞는 첫 화면으로 바로 진입하세요.
+                  의사/간호/접수/수납/환자/스탭/관리자 역할별 화면으로 바로
+                  진입하세요.
                 </Typography>
               </Stack>
               <Stack
@@ -115,15 +136,15 @@ export default function HomePage() {
                   variant="contained"
                   sx={{ bgcolor: "var(--brand)", px: 2.5 }}
                 >
-                  원무 대시보드
+                  접수 대시보드
                 </Button>
                 <Button
                   component={Link}
-                  href="/doctor"
+                  href="/patients"
                   variant="outlined"
                   sx={{ px: 2.5 }}
                 >
-                  의사 진료화면
+                  환자 관리
                 </Button>
               </Stack>
             </CardContent>
@@ -138,13 +159,13 @@ export default function HomePage() {
             }}
           >
             <CardContent sx={{ p: 3.5 }}>
-              <Typography sx={{ fontWeight: 800 }}>오늘 운영 요약</Typography>
+              <Typography sx={{ fontWeight: 800 }}>오늘 업무 요약</Typography>
               <Stack spacing={1.5} sx={{ mt: 2 }}>
                 {[
                   { label: "외래 대기", value: "24명" },
                   { label: "검사 대기", value: "9건" },
-                  { label: "보험 미검증", value: "12건" },
-                  { label: "장비 점검", value: "CT실 15:00" },
+                  { label: "보험 미인증", value: "12건" },
+                  { label: "특이 알림", value: "CT 예정 15:00" },
                 ].map((item) => (
                   <Box
                     key={item.label}
@@ -215,7 +236,7 @@ export default function HomePage() {
                   {role.desc}
                 </Typography>
                 <Button component={Link} href={role.href} size="small" sx={{ mt: 2 }}>
-                  열기
+                  가기
                 </Button>
               </CardContent>
             </Card>

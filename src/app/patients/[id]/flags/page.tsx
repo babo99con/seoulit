@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 import { useParams } from "next/navigation";
@@ -302,12 +302,19 @@ export default function PatientFlagsPage() {
                 setForm((prev) => ({ ...prev, flagType: e.target.value }))
               }
               fullWidth
+              SelectProps={{ displayEmpty: true }}
             >
-              {options.map((opt) => (
-                <MenuItem key={opt.value} value={opt.value}>
-                  {opt.label}
+              {options.length == 0 ? (
+                <MenuItem value="" disabled>
+                  유형 설정 없음
                 </MenuItem>
-              ))}
+              ) : (
+                options.map((opt) => (
+                  <MenuItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </MenuItem>
+                ))
+              )}
             </TextField>
             <TextField
               label="메모"
