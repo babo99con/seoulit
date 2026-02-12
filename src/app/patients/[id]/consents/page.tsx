@@ -281,7 +281,7 @@ export default function PatientConsentsPage() {
           sortOrder: sortOrder ? Number(sortOrder) : undefined,
         });
       } else if (editingType) {
-        await updateConsentTypeApi(editingType.code, {
+        await updateConsentTypeApi(editingType.id, {
           code,
           name,
           sortOrder: sortOrder ? Number(sortOrder) : undefined,
@@ -298,7 +298,7 @@ export default function PatientConsentsPage() {
   const onDeactivateType = async (item: ConsentType) => {
     if (!confirm("해당 유형을 비활성 처리할까요?")) return;
     try {
-      await deactivateConsentTypeApi(item.code);
+      await deactivateConsentTypeApi(item.id);
       await loadConsentTypes();
     } catch (err) {
       setTypeError(err instanceof Error ? err.message : "동의서 유형 비활성 실패");
@@ -607,7 +607,7 @@ export default function PatientConsentsPage() {
                 disabled={typeLoading}
               >
                 {consentTypes.map((t) => (
-                  <MenuItem key={t.code} value={t.code}>
+                  <MenuItem key={t.id} value={t.code}>
                     {t.name}
                   </MenuItem>
                 ))}
@@ -782,7 +782,7 @@ export default function PatientConsentsPage() {
               </TableHead>
               <TableBody>
                 {consentTypesAll.map((t) => (
-                  <TableRow key={t.code} hover>
+                  <TableRow key={t.id} hover>
                     <TableCell>{t.code}</TableCell>
                     <TableCell>{t.name}</TableCell>
                     <TableCell>{t.sortOrder ?? "-"}</TableCell>
