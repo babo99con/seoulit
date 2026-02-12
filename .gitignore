@@ -1,0 +1,7 @@
+build/
+bin/
+logs/
+.gradle/
+.idea/
+*.log
+NUL

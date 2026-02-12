@@ -1,0 +1,215 @@
+DECLARE
+    PROCEDURE exec_ddl(p_sql IN CLOB) IS
+    BEGIN
+        EXECUTE IMMEDIATE p_sql;
+    EXCEPTION
+        WHEN OTHERS THEN
+            IF SQLCODE = -955 THEN
+                NULL;
+            ELSE
+                RAISE;
+            END IF;
+    END;
+BEGIN
+    exec_ddl('CREATE TABLE CMH.DEPARTMENTS (
+        ID NUMBER NOT NULL,
+        NAME VARCHAR2(100) NOT NULL,
+        DESCRIPTION VARCHAR2(255),
+        LOCATION VARCHAR2(100),
+        HEAD_STAFF_ID NUMBER,
+        DEPT_CODE VARCHAR2(30),
+        IS_ACTIVE CHAR(1) NOT NULL,
+        SORT_ORDER NUMBER NOT NULL,
+        CREATED_AT DATE NOT NULL,
+        UPDATED_AT DATE,
+        BUILDING_NO VARCHAR2(50),
+        FLOOR_NO VARCHAR2(10),
+        ROOM_NO VARCHAR2(20),
+        EXTENSION VARCHAR2(20)
+    )');
+
+    exec_ddl('CREATE TABLE CMH.POSITIONS (
+        ID NUMBER NOT NULL,
+        DOMAIN VARCHAR2(50),
+        TITLE VARCHAR2(100),
+        DESCRIPTION VARCHAR2(255),
+        POSITION_CODE VARCHAR2(30),
+        IS_ACTIVE CHAR(1) NOT NULL,
+        SORT_ORDER NUMBER NOT NULL,
+        CREATED_AT DATE NOT NULL,
+        UPDATED_AT DATE
+    )');
+
+    exec_ddl('CREATE TABLE CMH.STAFF_STATUS_CODES (
+        CODE VARCHAR2(20) NOT NULL,
+        LABEL VARCHAR2(50) NOT NULL,
+        SORT_ORDER NUMBER NOT NULL,
+        IS_ACTIVE CHAR(1) NOT NULL,
+        CREATED_AT DATE NOT NULL,
+        UPDATED_AT DATE
+    )');
+
+    exec_ddl('CREATE TABLE CMH.STAFF (
+        ID NUMBER NOT NULL,
+        USERNAME VARCHAR2(50) NOT NULL,
+        STATUS VARCHAR2(20),
+        DOMAIN_ROLE VARCHAR2(50),
+        FULL_NAME VARCHAR2(100),
+        OFFICE_LOCATION VARCHAR2(255),
+        PHOTO_KEY VARCHAR2(255),
+        BIO CLOB,
+        PHONE VARCHAR2(20),
+        DEPT_ID NUMBER,
+        POSITION_ID NUMBER,
+        STATUS_CODE VARCHAR2(20),
+        CREATED_AT DATE NOT NULL,
+        UPDATED_AT DATE
+    )');
+
+    exec_ddl('CREATE TABLE CMH.STAFF_CREDENTIAL (
+        ID NUMBER(10) NOT NULL,
+        STAFF_ID NUMBER(10) NOT NULL,
+        CRED_TYPE VARCHAR2(10) NOT NULL,
+        NAME VARCHAR2(100) NOT NULL,
+        CRED_NUMBER VARCHAR2(50),
+        ISSUER VARCHAR2(100),
+        ISSUED_AT DATE,
+        EXPIRES_AT DATE,
+        STATUS VARCHAR2(20) NOT NULL,
+        EVIDENCE_KEY VARCHAR2(255),
+        CREATED_AT DATE,
+        UPDATED_AT DATE
+    )');
+
+    exec_ddl('CREATE TABLE LHS.MENU (
+        ID NUMBER NOT NULL,
+        PARENT_ID NUMBER,
+        CODE VARCHAR2(50) NOT NULL,
+        NAME VARCHAR2(100) NOT NULL,
+        PATH VARCHAR2(200),
+        ICON VARCHAR2(50),
+        SORT_ORDER NUMBER NOT NULL,
+        IS_ACTIVE NUMBER(1) NOT NULL,
+        CREATED_AT TIMESTAMP(6) NOT NULL,
+        UPDATED_AT TIMESTAMP(6) NOT NULL
+    )');
+END;
+/
+
+DECLARE
+    PROCEDURE add_constraint_if_missing(p_owner IN VARCHAR2, p_table IN VARCHAR2, p_name IN VARCHAR2, p_ddl IN CLOB) IS
+        v_cnt NUMBER;
+    BEGIN
+        SELECT COUNT(*)
+          INTO v_cnt
+          FROM ALL_CONSTRAINTS
+         WHERE OWNER = UPPER(p_owner)
+           AND TABLE_NAME = UPPER(p_table)
+           AND CONSTRAINT_NAME = UPPER(p_name);
+
+        IF v_cnt = 0 THEN
+            EXECUTE IMMEDIATE p_ddl;
+        END IF;
+    END;
+BEGIN
+    add_constraint_if_missing('CMH', 'DEPARTMENTS', 'PK_DEPARTMENTS',
+        'ALTER TABLE CMH.DEPARTMENTS ADD CONSTRAINT PK_DEPARTMENTS PRIMARY KEY (ID)');
+    add_constraint_if_missing('CMH', 'POSITIONS', 'PK_POSITIONS',
+        'ALTER TABLE CMH.POSITIONS ADD CONSTRAINT PK_POSITIONS PRIMARY KEY (ID)');
+    add_constraint_if_missing('CMH', 'STAFF_STATUS_CODES', 'PK_STAFF_STAT_CD',
+        'ALTER TABLE CMH.STAFF_STATUS_CODES ADD CONSTRAINT PK_STAFF_STAT_CD PRIMARY KEY (CODE)');
+    add_constraint_if_missing('CMH', 'STAFF', 'PK_STAFF',
+        'ALTER TABLE CMH.STAFF ADD CONSTRAINT PK_STAFF PRIMARY KEY (ID)');
+    add_constraint_if_missing('CMH', 'STAFF_CREDENTIAL', 'PK_STAFF_CRED',
+        'ALTER TABLE CMH.STAFF_CREDENTIAL ADD CONSTRAINT PK_STAFF_CRED PRIMARY KEY (ID)');
+    add_constraint_if_missing('LHS', 'MENU', 'PK_MENU',
+        'ALTER TABLE LHS.MENU ADD CONSTRAINT PK_MENU PRIMARY KEY (ID)');
+
+    add_constraint_if_missing('CMH', 'STAFF', 'FK_STAFF_DEPT',
+        'ALTER TABLE CMH.STAFF ADD CONSTRAINT FK_STAFF_DEPT FOREIGN KEY (DEPT_ID) REFERENCES CMH.DEPARTMENTS(ID)');
+    add_constraint_if_missing('CMH', 'STAFF', 'FK_STAFF_POS',
+        'ALTER TABLE CMH.STAFF ADD CONSTRAINT FK_STAFF_POS FOREIGN KEY (POSITION_ID) REFERENCES CMH.POSITIONS(ID)');
+    add_constraint_if_missing('CMH', 'STAFF', 'FK_STAFF_STAT_CD',
+        'ALTER TABLE CMH.STAFF ADD CONSTRAINT FK_STAFF_STAT_CD FOREIGN KEY (STATUS_CODE) REFERENCES CMH.STAFF_STATUS_CODES(CODE)');
+    add_constraint_if_missing('CMH', 'STAFF_CREDENTIAL', 'FK_STFCRD_STAFF',
+        'ALTER TABLE CMH.STAFF_CREDENTIAL ADD CONSTRAINT FK_STFCRD_STAFF FOREIGN KEY (STAFF_ID) REFERENCES CMH.STAFF(ID)');
+
+    add_constraint_if_missing('CMH', 'DEPARTMENTS', 'CK_DEPT_ACT_YN',
+        'ALTER TABLE CMH.DEPARTMENTS ADD CONSTRAINT CK_DEPT_ACT_YN CHECK (IS_ACTIVE IN (''Y'',''N''))');
+    add_constraint_if_missing('CMH', 'POSITIONS', 'CK_POS_ACT_YN',
+        'ALTER TABLE CMH.POSITIONS ADD CONSTRAINT CK_POS_ACT_YN CHECK (IS_ACTIVE IN (''Y'',''N''))');
+    add_constraint_if_missing('CMH', 'STAFF_STATUS_CODES', 'CK_STFSTAT_ACT_YN',
+        'ALTER TABLE CMH.STAFF_STATUS_CODES ADD CONSTRAINT CK_STFSTAT_ACT_YN CHECK (IS_ACTIVE IN (''Y'',''N''))');
+    add_constraint_if_missing('CMH', 'STAFF_CREDENTIAL', 'CK_STFCRED_TYPE',
+        'ALTER TABLE CMH.STAFF_CREDENTIAL ADD CONSTRAINT CK_STFCRED_TYPE CHECK (CRED_TYPE IN (''LICENSE'',''CERT''))');
+    add_constraint_if_missing('CMH', 'STAFF_CREDENTIAL', 'CK_STFCRED_STATUS',
+        'ALTER TABLE CMH.STAFF_CREDENTIAL ADD CONSTRAINT CK_STFCRED_STATUS CHECK (STATUS IN (''ACTIVE'',''EXPIRED'',''REVOKED''))');
+END;
+/
+
+DECLARE
+    PROCEDURE create_seq_if_missing(p_owner IN VARCHAR2, p_seq IN VARCHAR2) IS
+        v_cnt NUMBER;
+    BEGIN
+        SELECT COUNT(*)
+          INTO v_cnt
+          FROM ALL_SEQUENCES
+         WHERE SEQUENCE_OWNER = UPPER(p_owner)
+           AND SEQUENCE_NAME = UPPER(p_seq);
+
+        IF v_cnt = 0 THEN
+            EXECUTE IMMEDIATE 'CREATE SEQUENCE ' || p_owner || '.' || p_seq || ' START WITH 1 INCREMENT BY 1 NOCACHE';
+        END IF;
+    END;
+
+    PROCEDURE create_trigger_if_missing(p_owner IN VARCHAR2, p_trigger IN VARCHAR2, p_sql IN CLOB) IS
+        v_cnt NUMBER;
+    BEGIN
+        SELECT COUNT(*) INTO v_cnt FROM ALL_TRIGGERS WHERE OWNER = UPPER(p_owner) AND TRIGGER_NAME = UPPER(p_trigger);
+        IF v_cnt = 0 THEN
+            EXECUTE IMMEDIATE p_sql;
+        END IF;
+    END;
+BEGIN
+    create_seq_if_missing('CMH', 'DEPT_SEQ');
+    create_seq_if_missing('CMH', 'POSITION_SEQ');
+    create_seq_if_missing('CMH', 'STAFF_SEQ');
+    create_seq_if_missing('CMH', 'STAFF_CREDENTIAL_SEQ');
+
+    create_trigger_if_missing('CMH', 'TRG_DEPARTMENTS_ID',
+        'CREATE OR REPLACE TRIGGER CMH.TRG_DEPARTMENTS_ID
+         BEFORE INSERT ON CMH.DEPARTMENTS
+         FOR EACH ROW
+         WHEN (NEW.ID IS NULL)
+         BEGIN
+           :NEW.ID := CMH.DEPT_SEQ.NEXTVAL;
+         END;');
+
+    create_trigger_if_missing('CMH', 'TRG_POSITIONS_ID',
+        'CREATE OR REPLACE TRIGGER CMH.TRG_POSITIONS_ID
+         BEFORE INSERT ON CMH.POSITIONS
+         FOR EACH ROW
+         WHEN (NEW.ID IS NULL)
+         BEGIN
+           :NEW.ID := CMH.POSITION_SEQ.NEXTVAL;
+         END;');
+
+    create_trigger_if_missing('CMH', 'TRG_STAFF_ID',
+        'CREATE OR REPLACE TRIGGER CMH.TRG_STAFF_ID
+         BEFORE INSERT ON CMH.STAFF
+         FOR EACH ROW
+         WHEN (NEW.ID IS NULL)
+         BEGIN
+           :NEW.ID := CMH.STAFF_SEQ.NEXTVAL;
+         END;');
+
+    create_trigger_if_missing('CMH', 'TRG_STAFF_CREDENTIAL_ID',
+        'CREATE OR REPLACE TRIGGER CMH.TRG_STAFF_CREDENTIAL_ID
+         BEFORE INSERT ON CMH.STAFF_CREDENTIAL
+         FOR EACH ROW
+         WHEN (NEW.ID IS NULL)
+         BEGIN
+           :NEW.ID := CMH.STAFF_CREDENTIAL_SEQ.NEXTVAL;
+         END;');
+END;
+/
