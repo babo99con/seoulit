@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="app.patient.mapper.PatientStatusHistoryMapper">
+
+  <select id="search" resultType="app.patient.entity.PatientStatusHistoryEntity">
+    SELECT
+      history_id,
+      patient_id,
+      from_status,
+      to_status,
+      reason,
+      changed_by,
+      changed_at
+    FROM patient_status_history
+    <where>
+      <choose>
+        <when test="type == 'patientId'">
+          TO_CHAR(patient_id) LIKE '%' || #{keyword} || '%'
+        </when>
+        <when test="type == 'fromStatus'">
+          from_status = #{keyword}
+        </when>
+        <when test="type == 'toStatus'">
+          to_status = #{keyword}
+        </when>
+        <when test="type == 'changedBy'">
+          changed_by LIKE '%' || #{keyword} || '%'
+        </when>
+        <otherwise>
+          reason LIKE '%' || #{keyword} || '%'
+        </otherwise>
+      </choose>
+    </where>
+    ORDER BY changed_at DESC, history_id DESC
+  </select>
+
+</mapper>
+
+

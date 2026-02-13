@@ -1,0 +1,92 @@
+services:
+  oracle-db:
+    image: gvenzl/oracle-xe:21-slim
+    container_name: hospital-oracle
+    environment:
+      ORACLE_PASSWORD: oracle
+      APP_USER: hospital
+      APP_USER_PASSWORD: "1111"
+    ports:
+      - "1521:1521"
+    volumes:
+      - oracle-data:/opt/oracle/oradata
+      - ./docker/oracle/init:/container-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "healthcheck.sh"]
+      interval: 20s
+      timeout: 10s
+      retries: 15
+      start_period: 40s
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: hospital-redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:latest
+    container_name: hospital-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin123
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data:/data
+    restart: unless-stopped
+
+  minio-init:
+    image: minio/mc:latest
+    container_name: hospital-minio-init
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      until /usr/bin/mc alias set local http://minio:9000 minioadmin minioadmin123; do sleep 2; done;
+      /usr/bin/mc mb -p local/staff-profile || true;
+      /usr/bin/mc mb -p local/hospital-files || true;
+      exit 0;
+      "
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hospital-backend
+    depends_on:
+      oracle-db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      minio:
+        condition: service_started
+      minio-init:
+        condition: service_completed_successfully
+    environment:
+      SERVER_PORT: 8081
+      SPRING_DATASOURCE_URL: jdbc:log4jdbc:oracle:thin:@//oracle-db:1521/XE
+      SPRING_DATASOURCE_USERNAME: cmh
+      SPRING_DATASOURCE_PASSWORD: "1111"
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_CACHE_TYPE: redis
+      APP_STORAGE_TYPE: minio
+      MINIO_INTERNAL_URL: http://minio:9000
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin123
+      MINIO_BUCKET_STAFF: staff-profile
+      MINIO_BUCKET_PATIENT: hospital-files
+      APP_JWT_SECRET: hospital-demo-jwt-secret-key-change-me-2026-hospital
+    ports:
+      - "8081:8081"
+    restart: unless-stopped
+
+volumes:
+  oracle-data:
+  minio-data:

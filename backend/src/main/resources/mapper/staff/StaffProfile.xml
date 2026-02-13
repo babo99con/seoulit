@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="app.staff.mapper.StaffProfileMapper">
+    <insert id="insertStaffProfile" parameterType="app.staff.domain.StaffProfile">
+        INSERT INTO staff_profiles (user_id, license_no, profile_image_object_id)
+        VALUES (#{userId}, #{licenseNo}, #{profileImageObjectId})
+    </insert>
+
+    <select id="selectStaffProfileByUserId" parameterType="long" resultType="app.staff.domain.StaffProfile">
+        SELECT * FROM staff_profiles WHERE user_id = #{userId}
+    </select>
+</mapper>

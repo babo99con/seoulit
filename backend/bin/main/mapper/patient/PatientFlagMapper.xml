@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="app.patient.mapper.PatientFlagMapper">
+
+  <select id="search" resultType="app.patient.entity.PatientFlagEntity">
+    SELECT
+      flag_id,
+      patient_id,
+      flag_type,
+      note,
+      active_yn,
+      created_at,
+      updated_at
+    FROM patient_flag
+    <where>
+      <choose>
+        <when test="type == 'patientId'">
+          TO_CHAR(patient_id) LIKE '%' || #{keyword} || '%'
+        </when>
+        <when test="type == 'flagType'">
+          flag_type = #{keyword}
+        </when>
+        <when test="type == 'activeYn'">
+          active_yn = #{keyword}
+        </when>
+        <otherwise>
+          note LIKE '%' || #{keyword} || '%'
+        </otherwise>
+      </choose>
+    </where>
+    ORDER BY created_at DESC, flag_id DESC
+  </select>
+
+</mapper>

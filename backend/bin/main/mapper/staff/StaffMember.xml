@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="app.staff.mapper.StaffMemberMapper">
+    <insert id="insertStaffMember" parameterType="app.staff.domain.StaffMember" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO staff_members (user_id, staff_no, staff_type, dept_id, is_active, hired_at)
+        VALUES (#{userId}, #{staffNo}, #{staffType}, #{deptId}, #{isActive}, #{hiredAt})
+    </insert>
+
+    <select id="selectStaffMemberById" parameterType="long" resultType="app.staff.domain.StaffMember">
+        SELECT * FROM staff_members WHERE id = #{id}
+    </select>
+</mapper>

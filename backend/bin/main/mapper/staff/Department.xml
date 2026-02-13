@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="app.staff.mapper.DepartmentMapper">
+    <insert id="insertDepartment" parameterType="app.staff.domain.Department" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO departments (dept_code, dept_name, is_active, created_at)
+        VALUES (#{deptCode}, #{deptName}, #{isActive}, NOW())
+    </insert>
+
+    <select id="selectAllDepartments" resultType="app.staff.domain.Department">
+        SELECT id, dept_code AS deptCode, dept_name AS deptName, is_active AS isActive, created_at
+        FROM departments
+    </select>
+</mapper>

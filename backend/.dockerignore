@@ -1,0 +1,11 @@
+.gradle
+build
+bin
+logs
+.idea
+.vscode
+*.zip
+*.log
+HELP.md
+**/node_modules
+**/.DS_Store
