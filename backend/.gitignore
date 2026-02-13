@@ -6,6 +6,7 @@ logs/
 /build/
 /out/
 /target/
+/bin/
 
 # ===== Gradle =====
 .gradle/
@@ -14,6 +15,10 @@ logs/
 .idea/
 .vscode/
 *.iml
+.classpath
+.factorypath
+.project
+.settings/
 
 # ===== OS =====
 .DS_Store
