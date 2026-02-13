@@ -27,8 +27,17 @@ export type PatientRestrictionUpdatePayload = {
   endAt?: string | null;
 };
 
+import { getAccessToken } from "@/lib/session";
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_PATIENTS_API_BASE_URL ?? "http://192.168.1.60:8081",
+  baseURL: process.env.NEXT_PUBLIC_PATIENTS_API_BASE_URL ?? "",
+});
+
+api.interceptors.request.use((config) => {
+  const token = getAccessToken();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
 });
 
 export const fetchPatientRestrictionsApi = async (

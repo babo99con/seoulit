@@ -1,9 +1,18 @@
 import axios from "axios";
 import type { ApiResponse } from "@/features/patients/patientTypes";
 import type { StaffListItem } from "@/features/staff/staffTypes";
+import { getAccessToken } from "@/lib/session";
 
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_STAFF_API_BASE_URL ?? "http://localhost:8083",
+  baseURL: process.env.NEXT_PUBLIC_STAFF_API_BASE_URL ?? "",
+});
+
+api.interceptors.request.use((config) => {
+  const token = getAccessToken();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
 });
 
 export type StaffSearchCondition =

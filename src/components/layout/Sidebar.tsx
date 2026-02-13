@@ -12,6 +12,7 @@ import {
   Collapse,
   CircularProgress,
   Typography,
+  IconButton,
 } from "@mui/material";
 
 import HomeRoundedIcon from "@mui/icons-material/HomeRounded";
@@ -26,6 +27,7 @@ import ListIcon from "@mui/icons-material/List";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import PolicyIcon from "@mui/icons-material/Policy";
 import TaskAltIcon from "@mui/icons-material/TaskAlt";
+import ChevronLeftRoundedIcon from "@mui/icons-material/ChevronLeftRounded";
 
 import { fetchMenusApi } from "@/lib/menuApi";
 import type { MenuNode } from "@/types/menu";
@@ -42,11 +44,16 @@ const iconMap: Record<string, React.ReactNode> = {
   TaskAlt: <TaskAltIcon fontSize="small" />,
 };
 
-export default function Sidebar({ width = 240 }: { width?: number }) {
+export default function Sidebar({
+  width = 240,
+  onToggle,
+}: {
+  width?: number;
+  onToggle?: () => void;
+}) {
   const pathname = usePathname();
   const [menus, setMenus] = React.useState<MenuNode[]>([]);
   const [loading, setLoading] = React.useState(true);
-  const [loadFailed, setLoadFailed] = React.useState(false);
   const [openMap, setOpenMap] = React.useState<Record<number, boolean>>({});
 
   React.useEffect(() => {
@@ -54,21 +61,9 @@ export default function Sidebar({ width = 240 }: { width?: number }) {
     const load = async () => {
       try {
         setLoading(true);
-        setLoadFailed(false);
         const data = await fetchMenusApi();
         if (mounted) {
-          if (Array.isArray(data) && data.length > 0) {
-            setMenus(data);
-            setLoadFailed(false);
-          } else {
-            setMenus([]);
-            setLoadFailed(true);
-          }
-        }
-      } catch {
-        if (mounted) {
-          setMenus([]);
-          setLoadFailed(true);
+          setMenus(data);
         }
       } finally {
         if (mounted) {
@@ -82,30 +77,25 @@ export default function Sidebar({ width = 240 }: { width?: number }) {
     };
   }, []);
 
-  React.useEffect(() => {
-    if (!menus.length) return;
-    const nextOpen: Record<number, boolean> = {};
-
-    const markParents = (nodes: MenuNode[], parents: number[] = []) => {
-      for (const node of nodes) {
-        const nextParents = [...parents, node.id];
-        const isActive = isNodeActive(node);
-
-        if (isActive) {
-          for (const pid of parents) {
-            nextOpen[pid] = true;
-          }
-        }
-
-        if (node.children?.length) {
-          markParents(node.children, nextParents);
-        }
-      }
+  const currentModule = React.useMemo(() => {
+    const isSameOrChild = (basePath?: string | null, targetPath?: string | null) => {
+      if (!basePath || !targetPath) return false;
+      return targetPath === basePath || targetPath.startsWith(`${basePath}/`);
     };
 
-    markParents(menus);
-    setOpenMap((prev) => ({ ...prev, ...nextOpen }));
+    const hasActiveDescendant = (node: MenuNode): boolean => {
+      if (isSameOrChild(node.path, pathname)) return true;
+      return node.children?.some((child) => hasActiveDescendant(child)) ?? false;
+    };
+
+    return menus.find((root) => hasActiveDescendant(root)) ?? null;
   }, [menus, pathname]);
+
+  const sidebarMenus = React.useMemo(() => {
+    if (!currentModule) return menus;
+    if (currentModule.children?.length) return currentModule.children;
+    return [currentModule];
+  }, [menus, currentModule]);
 
   const itemSx = {
     borderRadius: 2,
@@ -126,6 +116,31 @@ export default function Sidebar({ width = 240 }: { width?: number }) {
   const hasActiveChild = (node: MenuNode): boolean =>
     node.children?.some((child) => isNodeActive(child) || hasActiveChild(child)) ??
     false;
+
+  React.useEffect(() => {
+    if (!sidebarMenus.length) return;
+    const nextOpen: Record<number, boolean> = {};
+
+    const markParents = (nodes: MenuNode[], parents: number[] = []) => {
+      for (const node of nodes) {
+        const nextParents = [...parents, node.id];
+        const isActive = isNodeActive(node);
+
+        if (isActive) {
+          for (const pid of parents) {
+            nextOpen[pid] = true;
+          }
+        }
+
+        if (node.children?.length) {
+          markParents(node.children, nextParents);
+        }
+      }
+    };
+
+    markParents(sidebarMenus);
+    setOpenMap((prev) => ({ ...prev, ...nextOpen }));
+  }, [sidebarMenus, pathname]);
 
   const toggle = (id: number) => {
     setOpenMap((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -256,46 +271,33 @@ export default function Sidebar({ width = 240 }: { width?: number }) {
       }}
     >
       <Box sx={{ px: 1, pb: 1.5 }}>
-        <Typography variant="overline" sx={{ color: "var(--muted)", letterSpacing: 1 }}>
-          HOSPITAL CORE
-        </Typography>
-        <Typography sx={{ fontWeight: 800, fontSize: 16, color: "var(--brand-strong)" }}>
-          병원 운영 메뉴
-        </Typography>
+        <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+          <Box>
+            <Typography variant="overline" sx={{ color: "var(--muted)", letterSpacing: 1 }}>
+              HOSPITAL CORE
+            </Typography>
+            <Typography sx={{ fontWeight: 800, fontSize: 16, color: "var(--brand-strong)" }}>
+              {currentModule ? `${currentModule.name} 모듈 메뉴` : "병원 운영 메뉴"}
+            </Typography>
+          </Box>
+          {onToggle ? (
+            <IconButton size="small" onClick={onToggle} sx={{ mt: 0.25 }}>
+              <ChevronLeftRoundedIcon fontSize="small" />
+            </IconButton>
+          ) : null}
+        </Box>
       </Box>
 
       {loading ? (
-        <Box sx={{ p: 2, display: "grid", justifyItems: "center", gap: 1 }}>
-          <CircularProgress size={22} />
-          <Typography variant="caption" sx={{ color: "var(--muted)" }}>
-            메뉴를 호출합니다.
-          </Typography>
-        </Box>
-      ) : loadFailed || menus.length === 0 ? (
-        <Box sx={{ p: 2 }}>
-          <Typography variant="body2" sx={{ color: "var(--muted)", fontWeight: 700 }}>
-            메뉴를 호출하는데 실패했습니다.
-          </Typography>
+        <Box sx={{ p: 2, display: "flex", justifyContent: "center" }}>
+          <CircularProgress size={24} />
         </Box>
       ) : (
         <List disablePadding>
-          {menus.map((node) => renderNode(node, 0))}
+          {sidebarMenus.map((node) => renderNode(node, 0))}
         </List>
       )}
 
-      <Box
-        sx={{
-          mt: 2,
-          p: 1.25,
-          borderRadius: 2,
-          bgcolor: "rgba(255,255,255,0.65)",
-          border: "1px solid var(--line)",
-        }}
-      >
-        <Typography variant="caption" fontWeight={800} color="text.secondary">
-          * 모듈 확장은 Sprint에서 진행
-        </Typography>
-      </Box>
     </Box>
   );
 }

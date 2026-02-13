@@ -382,8 +382,8 @@ export default function PatientDetailPage() {
   const [reservationDialogOpen, setReservationDialogOpen] = React.useState(false);
   const [reservationSaving, setReservationSaving] = React.useState(false);
   const [reservationForm, setReservationForm] = React.useState({
-    deptCode: "내과",
-    doctorId: "김의사",
+    deptCode: "",
+    doctorId: "",
     reservationId: "",
     scheduledAt: "",
     arrivalAt: "",
@@ -393,8 +393,8 @@ export default function PatientDetailPage() {
 
   const openReservationDialog = () => {
     setReservationForm({
-      deptCode: "내과",
-      doctorId: "김의사",
+      deptCode: "",
+      doctorId: "",
       reservationId: "",
       scheduledAt: "",
       arrivalAt: "",
@@ -406,6 +406,10 @@ export default function PatientDetailPage() {
 
   const saveReservation = async () => {
     if (!p) return;
+    if (!reservationForm.deptCode.trim()) {
+      alert("진료과를 입력해주세요.");
+      return;
+    }
     if (!reservationForm.scheduledAt) {
       alert("예약 일시는 필수입니다.");
       return;
@@ -726,7 +730,6 @@ export default function PatientDetailPage() {
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
             <TextField
-              select
               label="진료과"
               value={reservationForm.deptCode}
               onChange={(e) =>
@@ -736,14 +739,8 @@ export default function PatientDetailPage() {
                 }))
               }
               fullWidth
-            >
-              <MenuItem value="내과">내과</MenuItem>
-              <MenuItem value="정형외과">정형외과</MenuItem>
-              <MenuItem value="치과">치과</MenuItem>
-              <MenuItem value="소아과">소아과</MenuItem>
-            </TextField>
+            />
             <TextField
-              select
               label="담당의"
               value={reservationForm.doctorId}
               onChange={(e) =>
@@ -753,11 +750,7 @@ export default function PatientDetailPage() {
                 }))
               }
               fullWidth
-            >
-              <MenuItem value="김의사">김의사</MenuItem>
-              <MenuItem value="박의사">박의사</MenuItem>
-              <MenuItem value="이의사">이의사</MenuItem>
-            </TextField>
+            />
             <TextField
               label="예약 ID"
               value={reservationForm.reservationId}

@@ -35,7 +35,7 @@ const CALLS = [
 
 export default function NursePage() {
   return (
-    <MainLayout showSidebar={false}>
+    <MainLayout>
       <Stack spacing={2.5}>
         <Card
           sx={{

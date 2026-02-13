@@ -16,8 +16,17 @@ export type VisitEmergencyPayload = {
   note?: string | null;
 };
 
+import { getAccessToken } from "@/lib/session";
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_RECEPTION_API_BASE_URL ?? "http://localhost:8082",
+  baseURL: process.env.NEXT_PUBLIC_RECEPTION_API_BASE_URL ?? "",
+});
+
+api.interceptors.request.use((config) => {
+  const token = getAccessToken();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
 });
 
 export const fetchVisitEmergencyApi = async (

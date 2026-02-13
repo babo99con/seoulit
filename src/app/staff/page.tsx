@@ -74,7 +74,7 @@ export default function StaffPage() {
   }, [staffs]);
 
   return (
-    <MainLayout showSidebar={false}>
+    <MainLayout>
       <Stack spacing={2.5}>
         <Card
           sx={{

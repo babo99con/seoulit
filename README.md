@@ -1,36 +1,106 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# HIS Workspace (Frontend + Backend)
 
-## Getting Started
+병원관리 시스템(HIS) 프론트/백엔드 통합 개발 문서입니다.
 
-First, run the development server:
+## 실행 포트
+
+- 프론트엔드(Next.js): `3001`
+- 백엔드(Spring Boot in Docker): `8081`
+- Oracle DB(Docker): `1521`
+
+## 빠른 실행(초보자용)
+
+### 1) 백엔드/DB 실행
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cd D:\portfolio-react\backend
+docker compose up -d --build
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2) 프론트 실행
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+cd D:\portfolio-react
+npm install
+npm run dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 3) 접속
 
-## Learn More
+- 브라우저: `http://localhost:3001/login`
 
-To learn more about Next.js, take a look at the following resources:
+## 기본 계정
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- 관리자: `admin / admin1234`
+- 의사: `doctor / doctor1234`
+- 간호: `nurse / nurse1234`
+- 원무: `reception / reception1234`
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 이번 작업 핵심 반영 내용
 
-## Deploy on Vercel
+### 1) 인증/권한
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- JWT 로그인/인증 흐름 정리
+- 로그인 없이 직접 URL 접근 시 로그인 페이지로 리다이렉트
+- 역할 기반 API 권한 적용(의사/간호/관리자 등)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### 2) 원무(접수) 기능
+
+- 접수 목록/상세/수정/이력/예약/응급/입원 흐름 정비
+- CORS 및 API 연동 안정화
+
+### 3) 진료 기능(신규 강화)
+
+- 진료 목록 조회
+- 진료 단건 조회
+- 진료 수정
+- 진료 비활성 처리/활성 복구
+- 진료 변경 이력 조회
+
+### 4) UI/UX 개선
+
+- 네이브바/사이드바 단순화
+- 사이드바 접기/펼치기 토글 추가
+- 진료 상세를 우측 슬라이드 패널로 전환
+- 진료 상세 탭(진료 상세 / 변경 이력) 분리
+- 목록 화면에 실무형 정보(요약 카드, 상태 칩, 정렬 옵션) 추가
+
+## 의사 화면 사용법
+
+1. 로그인 후 대시보드에서 `의사` 카드 클릭
+2. 진료 목록에서 환자 행 클릭
+3. 우측 슬라이드 패널에서 상세 확인/수정
+4. `변경 이력` 탭에서 이력 확인
+5. 필요 시 비활성 처리 또는 활성 복구
+
+## 외부 PC에서 시연할 때
+
+같은 네트워크라면 아래처럼 접속 가능합니다.
+
+- `http://<노트북IP>:3001`
+
+예: `http://192.168.1.64:3001`
+
+주의:
+
+- 윈도우 방화벽에서 `3001`, `8081` 인바운드 허용 필요
+- 백엔드는 노트북에서 Docker로 실행 중이어야 함
+
+## 점검 명령어
+
+```bash
+# 백엔드 컨테이너 상태
+docker ps
+
+# 백엔드 로그
+docker logs --tail 200 hospital-backend
+
+# 프론트 빌드 검증
+cd D:\portfolio-react
+npm run build
+```
+
+## 현재 구조
+
+- 루트(`D:\portfolio-react`): Next.js 프론트
+- 백엔드(`D:\portfolio-react\backend`): Spring Boot + Oracle/Redis/MinIO Docker 구성

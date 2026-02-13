@@ -1,11 +1,13 @@
 import type { NextConfig } from "next";
 
+const backendOrigin = process.env.BACKEND_API_ORIGIN ?? "http://127.0.0.1:8081";
+
 const nextConfig: NextConfig = {
   async rewrites() {
     return [
       {
         source: "/api/:path*",
-        destination: "http://localhost:8082/api/:path*", // ✅ adm 백엔드 주소로 변경
+        destination: `${backendOrigin}/api/:path*`,
       },
     ];
   },

@@ -192,6 +192,16 @@ export default function ReceptionPage({ mode, title }: Props) {
     dispatch(receptionActions.fetchVisitsRequest());
   }, [dispatch]);
 
+  const visitsByMode = React.useMemo(() => {
+    return visits.filter((v) => {
+      if (mode === "OUTPATIENT") return v.visitType === "OUTPATIENT";
+      if (mode === "OUTPATIENT_RESERVATION") return v.visitType === "RESERVATION";
+      if (mode === "INPATIENT") return v.visitType === "INPATIENT";
+      if (mode === "EMERGENCY") return v.visitType === "EMERGENCY";
+      return true;
+    });
+  }, [visits, mode]);
+
   const counts = React.useMemo(() => {
     const c: Record<VisitStatus, number> = {
       WAITING: 0,
@@ -200,26 +210,16 @@ export default function ReceptionPage({ mode, title }: Props) {
       DONE: 0,
       CANCELLED: 0,
     };
-    for (const v of visits) {
+    for (const v of visitsByMode) {
       if (c[v.status as VisitStatus] !== undefined) {
         c[v.status as VisitStatus] += 1;
       }
     }
     return c;
-  }, [visits]);
+  }, [visitsByMode]);
 
   const visitFiltered = React.useMemo(() => {
-    let list = [...visits];
-
-    list = list.filter((v) => {
-      if (mode === "OUTPATIENT") return v.visitType === "OUTPATIENT";
-      if (mode === "OUTPATIENT_RESERVATION") return v.visitType === "RESERVATION";
-      if (mode === "INPATIENT") {
-        return v.visitType === "INPATIENT";
-      }
-      if (mode === "EMERGENCY") return v.visitType === "EMERGENCY";
-      return true;
-    });
+    let list = [...visitsByMode];
 
     if (tab !== "ALL") list = list.filter((v) => v.status === tab);
 
@@ -240,15 +240,15 @@ export default function ReceptionPage({ mode, title }: Props) {
     });
 
     return list;
-  }, [visits, tab, visitKeyword, mode]);
+  }, [visitsByMode, tab, visitKeyword]);
 
   const openVisitDrawer = (v: VisitRes) => {
     setSelectedVisit(v);
     setDrawerOpen(true);
   };
 
-  const [dept, setDept] = React.useState("내과");
-  const [doctor, setDoctor] = React.useState("김의사");
+  const [dept, setDept] = React.useState("");
+  const [doctor, setDoctor] = React.useState("");
   const [memo, setMemo] = React.useState("");
   const [priority, setPriority] = React.useState(false);
   const [reservationId, setReservationId] = React.useState("");
@@ -267,6 +267,10 @@ export default function ReceptionPage({ mode, title }: Props) {
 
   const createVisit = async () => {
     if (!selectedPatient) return;
+    if (!dept.trim()) {
+      alert("진료과를 입력해주세요.");
+      return;
+    }
     const visitType: VisitType =
       mode === "OUTPATIENT"
         ? "OUTPATIENT"
@@ -655,7 +659,18 @@ export default function ReceptionPage({ mode, title }: Props) {
   return (
     <MainLayout>
       <Box sx={{ p: 0 }}>
-        <Paper elevation={0} sx={{ ...headerSx, p: 3, mb: 2 }}>
+        {mode === "OUTPATIENT" ? (
+          <Paper elevation={0} sx={{ ...headerSx, p: 3, mb: 2 }}>
+            <Typography variant="h5" fontWeight={900}>
+              원무 워크스테이션
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+              접수/예약/응급/입원 업무를 원무 모듈에서 관리합니다.
+            </Typography>
+          </Paper>
+        ) : null}
+
+        <Paper elevation={0} sx={{ ...panelSx, p: 2, mb: 2 }}>
           <Stack
             direction="row"
             alignItems="center"
@@ -663,7 +678,7 @@ export default function ReceptionPage({ mode, title }: Props) {
             spacing={2}
           >
             <Box>
-              <Typography variant="h5" fontWeight={900}>
+              <Typography fontWeight={900} sx={{ mb: 0.5 }}>
                 {title}
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
@@ -725,24 +740,21 @@ export default function ReceptionPage({ mode, title }: Props) {
                   </Alert>
                 ) : null}
 
-                <FormControl size="small" fullWidth>
-                  <InputLabel>진료과</InputLabel>
-                  <Select value={dept} label="진료과" onChange={(e) => setDept(e.target.value)}>
-                    <MenuItem value="내과">내과</MenuItem>
-                    <MenuItem value="피부과">피부과</MenuItem>
-                    <MenuItem value="소아과">소아과</MenuItem>
-                    <MenuItem value="정형외과">정형외과</MenuItem>
-                  </Select>
-                </FormControl>
+                <TextField
+                  size="small"
+                  label="진료과"
+                  value={dept}
+                  onChange={(e) => setDept(e.target.value)}
+                  fullWidth
+                />
 
-                <FormControl size="small" fullWidth>
-                  <InputLabel>담당의</InputLabel>
-                  <Select value={doctor} label="담당의" onChange={(e) => setDoctor(e.target.value)}>
-                    <MenuItem value="김의사">김의사</MenuItem>
-                    <MenuItem value="이의사">이의사</MenuItem>
-                    <MenuItem value="박의사">박의사</MenuItem>
-                  </Select>
-                </FormControl>
+                <TextField
+                  size="small"
+                  label="담당의"
+                  value={doctor}
+                  onChange={(e) => setDoctor(e.target.value)}
+                  fullWidth
+                />
 
                 {mode === "OUTPATIENT_RESERVATION" ? (
                   <Stack spacing={2}>
