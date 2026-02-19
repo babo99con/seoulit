@@ -37,6 +37,9 @@ BEGIN
     grant_if_table_exists('CMH', 'STAFF_STATUS_CODES');
     grant_if_table_exists('CMH', 'STAFF');
     grant_if_table_exists('CMH', 'STAFF_CREDENTIAL');
+    grant_if_table_exists('CMH', 'STAFF_HISTORY');
+    grant_if_table_exists('CMH', 'STAFF_CHANGE_REQUEST');
+    grant_if_table_exists('CMH', 'STAFF_AUDIT_LOG');
     grant_if_table_exists('CMH', 'VISIT_REG');
     grant_if_table_exists('CMH', 'VISIT_HISTORY');
     grant_if_table_exists('CMH', 'VISIT_RESERVATION');
@@ -44,6 +47,8 @@ BEGIN
     grant_if_table_exists('CMH', 'VISIT_INPATIENT');
     grant_if_table_exists('CMH', 'MEDICAL_ENCOUNTER');
     grant_if_table_exists('CMH', 'MEDICAL_ENCOUNTER_HISTORY');
+    grant_if_table_exists('CMH', 'MEDICAL_ENCOUNTER_DIAGNOSIS');
+    grant_if_table_exists('CMH', 'MEDICAL_ENCOUNTER_ASSET');
 
     grant_if_table_exists('LHS', 'MENU');
 
@@ -56,9 +61,14 @@ BEGIN
     grant_if_sequence_exists('CMH', 'POSITION_SEQ');
     grant_if_sequence_exists('CMH', 'STAFF_SEQ');
     grant_if_sequence_exists('CMH', 'STAFF_CREDENTIAL_SEQ');
+    grant_if_sequence_exists('CMH', 'STAFF_HISTORY_SEQ');
+    grant_if_sequence_exists('CMH', 'STAFF_CHANGE_REQ_SEQ');
+    grant_if_sequence_exists('CMH', 'STAFF_AUDIT_LOG_SEQ');
     grant_if_sequence_exists('CMH', 'VISIT_REG_SEQ');
     grant_if_sequence_exists('CMH', 'VISIT_HISTORY_SEQ');
     grant_if_sequence_exists('CMH', 'MEDICAL_ENCOUNTER_SEQ');
     grant_if_sequence_exists('CMH', 'MEDICAL_ENCOUNTER_HIS_SEQ');
+    grant_if_sequence_exists('CMH', 'MEDICAL_ENC_DIAG_SEQ');
+    grant_if_sequence_exists('CMH', 'MEDICAL_ENC_ASSET_SEQ');
 END;
 /

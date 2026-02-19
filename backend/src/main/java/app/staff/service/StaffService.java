@@ -2,6 +2,8 @@ package app.staff.service;
 
 
 import app.staff.dto.StaffListItem;
+import app.staff.dto.StaffSelfUpdateReq;
+import app.staff.dto.StaffHistoryItemRes;
 import app.staff.entity.StaffEntity;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -35,6 +37,24 @@ public interface StaffService {
 
     // U
     void updateStaff(StaffEntity staff, MultipartFile file);
+
+    StaffEntity selectMyDetail(String username);
+
+    StaffEntity updateMyProfile(String username, StaffSelfUpdateReq req);
+
+    StaffEntity updateMyPhoto(String username, MultipartFile file);
+
+    StaffEntity updateStaffStatus(int id, String statusCode, String reason, String changedBy);
+
+    StaffEntity updateStaffAssignment(int id, Long deptId, Long positionId, String reason, String changedBy);
+
+    List<StaffHistoryItemRes> getStaffHistory(int staffId);
+
+    void changeMyPassword(String username, String currentPassword, String newPassword);
+
+    void resetStaffPassword(int staffId, String newPassword, String changedBy);
+
+    void resetStaffPasswordByHash(int staffId, String passwordHash, String changedBy);
 
     // D (soft delete)
     void deleteStaff(int id);

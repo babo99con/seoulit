@@ -47,7 +47,10 @@ const SEARCH_OPTIONS: { label: string; value: PatientSearchPayload["type"] }[] =
 const DETAIL_TABS = ["기본", "보호자/연락", "메모", "바로가기"];
 
 const API_BASE =
-  process.env.NEXT_PUBLIC_PATIENTS_API_BASE_URL ?? "http://localhost:8081";
+  process.env.NEXT_PUBLIC_PATIENTS_API_BASE_URL?.trim() ||
+  (typeof window !== "undefined"
+    ? `${window.location.protocol === "https:" ? "https:" : "http:"}//${window.location.hostname}:8081`
+    : "http://127.0.0.1:8081");
 
 function resolvePhotoUrl(url?: string | null) {
   if (!url) return "";

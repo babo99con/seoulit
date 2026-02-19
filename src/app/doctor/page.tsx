@@ -1,12 +1,12 @@
 "use client";
 
 import MainLayout from "@/components/layout/MainLayout";
-import EncounterWorkspace from "@/components/doctor/EncounterWorkspace";
+import DoctorDashboard from "@/components/doctor/DoctorDashboard";
 
 export default function DoctorPage() {
   return (
     <MainLayout>
-      <EncounterWorkspace includeInactiveDefault={false} />
+      <DoctorDashboard />
     </MainLayout>
   );
 }

@@ -3,6 +3,7 @@ package app.medical.dto;
 import lombok.Data;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 public class MedicalEncounterDetailRes {
@@ -18,6 +19,7 @@ public class MedicalEncounterDetailRes {
     private String assessment;
     private String planNote;
     private String diagnosisCode;
+    private List<MedicalEncounterDiagnosisRes> diagnoses;
     private String memo;
     private String isActive;
     private String inactiveReasonCode;

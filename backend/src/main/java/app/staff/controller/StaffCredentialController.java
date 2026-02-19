@@ -19,7 +19,6 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/jpa/staff-credentials")
 @AllArgsConstructor
-@CrossOrigin(origins = "*")
 @Slf4j
 @Tag(name = "Staff Credential (JPA)", description = "Staff License/Certificate Management API")
 public class StaffCredentialController {

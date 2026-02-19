@@ -35,7 +35,7 @@ public class StaffEntity {
     @Column(name = "PASSWORD_HASH", length = 64)
     private String passwordHash;
 
-    // New model: status_code references staff_status_codes.code (no FK enforced)
+    // status_code references staff_status_codes.code
     @Column(name = "STATUS_CODE", length = 20)
     private String statusCode;
 

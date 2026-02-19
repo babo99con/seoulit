@@ -6,6 +6,7 @@ import app.medical.service.MedicalEncounterService;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -45,6 +46,38 @@ public class MedicalEncounterController {
     @GetMapping("/{encounterId}/history")
     public ResponseEntity<ApiResponse<List<MedicalEncounterHistoryRes>>> findHistory(@PathVariable Long encounterId) {
         return ResponseEntity.ok(new ApiResponse<List<MedicalEncounterHistoryRes>>().ok(medicalEncounterService.findHistory(encounterId)));
+    }
+
+    @GetMapping("/diagnosis-codes")
+    public ResponseEntity<ApiResponse<List<MedicalDiagnosisCodeRes>>> findDiagnosisCodes(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false, defaultValue = "20") int size
+    ) {
+        return ResponseEntity.ok(new ApiResponse<List<MedicalDiagnosisCodeRes>>().ok(medicalEncounterService.findDiagnosisCodes(keyword, size)));
+    }
+
+    @GetMapping("/{encounterId}/assets")
+    public ResponseEntity<ApiResponse<List<MedicalEncounterAssetRes>>> findAssets(@PathVariable Long encounterId) {
+        return ResponseEntity.ok(new ApiResponse<List<MedicalEncounterAssetRes>>().ok(medicalEncounterService.findAssets(encounterId)));
+    }
+
+    @PostMapping(value = "/{encounterId}/assets", consumes = {"multipart/form-data"})
+    public ResponseEntity<ApiResponse<MedicalEncounterAssetRes>> createAsset(
+            @PathVariable Long encounterId,
+            @RequestPart("data") MedicalEncounterAssetCreateReq req,
+            @RequestPart("file") MultipartFile file
+    ) {
+        return ResponseEntity.ok(new ApiResponse<MedicalEncounterAssetRes>().ok(medicalEncounterService.createAsset(encounterId, req, file)));
+    }
+
+    @DeleteMapping("/{encounterId}/assets/{assetId}")
+    public ResponseEntity<ApiResponse<Void>> deleteAsset(
+            @PathVariable Long encounterId,
+            @PathVariable Long assetId,
+            @RequestParam(required = false) String deletedBy
+    ) {
+        medicalEncounterService.deleteAsset(encounterId, assetId, deletedBy);
+        return ResponseEntity.ok(new ApiResponse<Void>().ok());
     }
 
     @PutMapping("/{encounterId}")

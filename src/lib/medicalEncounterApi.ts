@@ -21,12 +21,26 @@ export type MedicalEncounterDetail = MedicalEncounter & {
   assessment?: string | null;
   planNote?: string | null;
   diagnosisCode?: string | null;
+  diagnoses?: MedicalEncounterDiagnosis[];
   memo?: string | null;
   createdBy?: string | null;
   updatedBy?: string | null;
   inactiveReasonCode?: string | null;
   inactiveReasonMemo?: string | null;
   inactivatedAt?: string | null;
+};
+
+export type MedicalEncounterDiagnosis = {
+  id?: number | null;
+  diagnosisCode: string;
+  diagnosisName?: string | null;
+  primary?: boolean;
+  sortOrder?: number;
+};
+
+export type DiagnosisCodeCandidate = {
+  code: string;
+  name?: string | null;
 };
 
 export type MedicalEncounterHistory = {
@@ -39,6 +53,18 @@ export type MedicalEncounterHistory = {
   reason?: string | null;
   changedBy?: string | null;
   changedAt?: string | null;
+};
+
+export type MedicalEncounterAsset = {
+  id: number;
+  encounterId: number;
+  patientId: number;
+  assetType: "PEN" | "IMAGE" | string;
+  templateCode?: string | null;
+  objectKey: string;
+  fileUrl?: string | null;
+  createdBy?: string | null;
+  createdAt?: string | null;
 };
 
 export type EncounterPage = {
@@ -68,6 +94,7 @@ export type UpdateEncounterPayload = {
   assessment?: string | null;
   planNote?: string | null;
   diagnosisCode?: string | null;
+  diagnoses?: MedicalEncounterDiagnosis[];
   memo?: string | null;
   updatedBy?: string | null;
 };
@@ -133,6 +160,49 @@ export const activateEncounterApi = async (encounterId: number, updatedBy?: stri
   });
   if (!res.data.success || !res.data.result) {
     throw new Error(res.data.message || "Failed to activate encounter");
+  }
+  return res.data.result;
+};
+
+export const fetchEncounterAssetsApi = async (encounterId: number): Promise<MedicalEncounterAsset[]> => {
+  const res = await api.get<ApiResponse<MedicalEncounterAsset[]>>(`/api/medical/encounters/${encounterId}/assets`);
+  if (!res.data.success || !res.data.result) {
+    throw new Error(res.data.message || "Failed to fetch encounter assets");
+  }
+  return res.data.result;
+};
+
+export const createEncounterAssetApi = async (
+  encounterId: number,
+  data: { assetType: "PEN" | "IMAGE"; templateCode?: string; createdBy?: string },
+  file: File
+): Promise<MedicalEncounterAsset> => {
+  const formData = new FormData();
+  formData.append("data", new Blob([JSON.stringify(data)], { type: "application/json" }));
+  formData.append("file", file);
+
+  const res = await api.post<ApiResponse<MedicalEncounterAsset>>(`/api/medical/encounters/${encounterId}/assets`, formData);
+  if (!res.data.success || !res.data.result) {
+    throw new Error(res.data.message || "Failed to create encounter asset");
+  }
+  return res.data.result;
+};
+
+export const deleteEncounterAssetApi = async (encounterId: number, assetId: number, deletedBy?: string): Promise<void> => {
+  const res = await api.delete<ApiResponse<void>>(`/api/medical/encounters/${encounterId}/assets/${assetId}`, {
+    params: deletedBy ? { deletedBy } : undefined,
+  });
+  if (!res.data.success) {
+    throw new Error(res.data.message || "Failed to delete encounter asset");
+  }
+};
+
+export const fetchDiagnosisCodeCandidatesApi = async (keyword?: string, size = 20): Promise<DiagnosisCodeCandidate[]> => {
+  const res = await api.get<ApiResponse<DiagnosisCodeCandidate[]>>(`/api/medical/encounters/diagnosis-codes`, {
+    params: { keyword, size },
+  });
+  if (!res.data.success || !res.data.result) {
+    throw new Error(res.data.message || "Failed to fetch diagnosis codes");
   }
   return res.data.result;
 };

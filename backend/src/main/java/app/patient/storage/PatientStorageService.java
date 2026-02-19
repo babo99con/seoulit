@@ -4,4 +4,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 public interface PatientStorageService {
     String save(MultipartFile file, String category);
+    String getPresignedUrl(String objectKey);
+    void delete(String objectKey);
 }

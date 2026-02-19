@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   Box,
   List,
@@ -30,6 +30,8 @@ import TaskAltIcon from "@mui/icons-material/TaskAlt";
 import ChevronLeftRoundedIcon from "@mui/icons-material/ChevronLeftRounded";
 
 import { fetchMenusApi } from "@/lib/menuApi";
+import { getSessionUser } from "@/lib/session";
+import { canAccessPath } from "@/lib/roleAccess";
 import type { MenuNode } from "@/types/menu";
 
 const iconMap: Record<string, React.ReactNode> = {
@@ -52,9 +54,15 @@ export default function Sidebar({
   onToggle?: () => void;
 }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [menus, setMenus] = React.useState<MenuNode[]>([]);
+  const [userRole, setUserRole] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [openMap, setOpenMap] = React.useState<Record<number, boolean>>({});
+
+  React.useEffect(() => {
+    setUserRole(getSessionUser()?.role ?? null);
+  }, [pathname]);
 
   React.useEffect(() => {
     let mounted = true;
@@ -77,6 +85,23 @@ export default function Sidebar({
     };
   }, []);
 
+  const filterMenusByRole = React.useCallback(
+    (nodes: MenuNode[]): MenuNode[] => {
+      const next: MenuNode[] = [];
+      for (const node of nodes) {
+        const filteredChildren = node.children?.length ? filterMenusByRole(node.children) : [];
+        const selfAllowed = node.path ? canAccessPath(userRole, node.path) : false;
+        if (selfAllowed || filteredChildren.length > 0 || (!node.path && !node.children?.length)) {
+          next.push({ ...node, children: filteredChildren });
+        }
+      }
+      return next;
+    },
+    [userRole],
+  );
+
+  const visibleMenus = React.useMemo(() => filterMenusByRole(menus), [menus, filterMenusByRole]);
+
   const currentModule = React.useMemo(() => {
     const isSameOrChild = (basePath?: string | null, targetPath?: string | null) => {
       if (!basePath || !targetPath) return false;
@@ -88,14 +113,71 @@ export default function Sidebar({
       return node.children?.some((child) => hasActiveDescendant(child)) ?? false;
     };
 
-    return menus.find((root) => hasActiveDescendant(root)) ?? null;
-  }, [menus, pathname]);
+    return visibleMenus.find((root) => hasActiveDescendant(root)) ?? null;
+  }, [visibleMenus, pathname]);
 
   const sidebarMenus = React.useMemo(() => {
-    if (!currentModule) return menus;
+    if (!currentModule) return visibleMenus;
     if (currentModule.children?.length) return currentModule.children;
     return [currentModule];
-  }, [menus, currentModule]);
+  }, [visibleMenus, currentModule]);
+
+  const sidebarMenusWithRoleShortcuts = React.useMemo(() => {
+    const fallbackIcon = sidebarMenus.find((node) => node.icon)?.icon ?? null;
+
+    const makeShortcuts = (items: Array<{ id: number; code: string; name: string; path: string; sortOrder: number }>) => {
+      return (items.map((item) => ({ ...item, icon: fallbackIcon, children: [] })) as MenuNode[]).filter((node) =>
+        canAccessPath(userRole, node.path || "")
+      );
+    };
+
+    if (pathname === "/staff") {
+      const hasStaffShortcut = sidebarMenus.some((node) => node.path === "/staff");
+      if (!hasStaffShortcut) return sidebarMenus;
+
+      return sidebarMenus.flatMap((node) => {
+        if (node.path !== "/staff") return [node];
+        return [
+          { ...node, id: node.id, name: "의료진", path: "/staff?panel=staff", children: [] },
+          { id: -902, name: "부서 관리", path: "/staff?panel=department", icon: node.icon, children: [] },
+          { id: -903, name: "직책 관리", path: "/staff?panel=position", icon: node.icon, children: [] },
+        ] as MenuNode[];
+      });
+    }
+
+    if (pathname.startsWith("/doctor")) {
+      return makeShortcuts([
+        { id: -910, code: "DOCTOR_DASHBOARD", name: "의사 대시보드", path: "/doctor", sortOrder: 1 },
+        { id: -911, code: "DOCTOR_ENCOUNTERS", name: "진료 워크스페이스", path: "/doctor/encounters", sortOrder: 2 },
+        { id: -913, code: "DOCTOR_PATIENTS", name: "환자 조회", path: "/patients", sortOrder: 3 },
+        { id: -914, code: "DOCTOR_DISPLAY", name: "진료실 현황", path: "/display", sortOrder: 4 },
+      ]);
+    }
+
+    if (pathname.startsWith("/nurse")) {
+      return makeShortcuts([
+        { id: -920, code: "NURSE_DASHBOARD", name: "간호 대시보드", path: "/nurse", sortOrder: 1 },
+        { id: -921, code: "NURSE_PATIENTS", name: "환자 조회", path: "/patients", sortOrder: 2 },
+        { id: -922, code: "NURSE_DISPLAY", name: "진료실 현황", path: "/display", sortOrder: 3 },
+      ]);
+    }
+
+    if (pathname.startsWith("/reception")) {
+      return makeShortcuts([
+        { id: -930, code: "RECEPTION_HOME", name: "원무 대시보드", path: "/reception", sortOrder: 1 },
+        { id: -931, code: "RECEPTION_RESERVATIONS", name: "예약/외래 접수", path: "/reception/reservations", sortOrder: 2 },
+        { id: -932, code: "RECEPTION_EMERGENCY", name: "응급 접수", path: "/reception/emergency", sortOrder: 3 },
+        { id: -933, code: "RECEPTION_INPATIENT", name: "입원 접수", path: "/reception/inpatient", sortOrder: 4 },
+        { id: -934, code: "RECEPTION_HISTORY", name: "내원 이력", path: "/reception/history", sortOrder: 5 },
+        { id: -935, code: "RECEPTION_PATIENTS", name: "환자 조회", path: "/patients", sortOrder: 6 },
+        { id: -936, code: "RECEPTION_CONSENTS", name: "동의서", path: "/consents", sortOrder: 7 },
+        { id: -937, code: "RECEPTION_INSURANCES", name: "보험", path: "/insurances", sortOrder: 8 },
+        { id: -938, code: "RECEPTION_DISPLAY", name: "진료실 현황", path: "/display", sortOrder: 9 },
+      ]);
+    }
+
+    return sidebarMenus;
+  }, [sidebarMenus, pathname, userRole]);
 
   const itemSx = {
     borderRadius: 2,
@@ -107,8 +189,17 @@ export default function Sidebar({
     "& .MuiListItemIcon-root": { color: "var(--brand)", minWidth: 36 },
   } as const;
 
-  const isPathActive = (path?: string | null, allowPrefix?: boolean) =>
-    !!path && (pathname === path || (allowPrefix && pathname.startsWith(path + "/")));
+  const isPathActive = (path?: string | null, allowPrefix?: boolean) => {
+    if (!path) return false;
+    const [targetPath, targetQuery] = path.split("?");
+    const targetPanel = targetQuery ? new URLSearchParams(targetQuery).get("panel") : null;
+    const currentPanel = searchParams.get("panel");
+    if (targetPanel) {
+      const normalizedCurrent = currentPanel || "staff";
+      return pathname === targetPath && normalizedCurrent === targetPanel;
+    }
+    return pathname === targetPath || (allowPrefix && pathname.startsWith(targetPath + "/"));
+  };
 
   const isNodeActive = (node: MenuNode) =>
     isPathActive(node.path, !!node.children?.length);
@@ -118,7 +209,7 @@ export default function Sidebar({
     false;
 
   React.useEffect(() => {
-    if (!sidebarMenus.length) return;
+    if (!sidebarMenusWithRoleShortcuts.length) return;
     const nextOpen: Record<number, boolean> = {};
 
     const markParents = (nodes: MenuNode[], parents: number[] = []) => {
@@ -138,9 +229,9 @@ export default function Sidebar({
       }
     };
 
-    markParents(sidebarMenus);
+    markParents(sidebarMenusWithRoleShortcuts);
     setOpenMap((prev) => ({ ...prev, ...nextOpen }));
-  }, [sidebarMenus, pathname]);
+  }, [sidebarMenusWithRoleShortcuts, pathname, searchParams]);
 
   const toggle = (id: number) => {
     setOpenMap((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -294,7 +385,7 @@ export default function Sidebar({
         </Box>
       ) : (
         <List disablePadding>
-          {sidebarMenus.map((node) => renderNode(node, 0))}
+          {sidebarMenusWithRoleShortcuts.map((node) => renderNode(node, 0))}
         </List>
       )}
 

@@ -62,5 +62,21 @@ public interface DepartmentRepository extends JpaRepository<DepartmentsEntity, L
                     "and lower(coalesce(d.extension, '')) like concat('%', lower(:value), '%')"
     )
     List<DepartmentsEntity> searchByExtension(@Param("activeOnly") boolean activeOnly, @Param("value") String value);
+
+    @Query(
+            value = "select count(*) from CMH.DEPARTMENTS d " +
+                    "where NLSSORT(TRIM(d.NAME), 'NLS_SORT=BINARY_CI') = " +
+                    "NLSSORT(TRIM(:name), 'NLS_SORT=BINARY_CI')",
+            nativeQuery = true
+    )
+    long countByNameNormalized(@Param("name") String name);
+
+    @Query(
+            value = "select count(*) from CMH.DEPARTMENTS d " +
+                    "where d.ID <> :id and NLSSORT(TRIM(d.NAME), 'NLS_SORT=BINARY_CI') = " +
+                    "NLSSORT(TRIM(:name), 'NLS_SORT=BINARY_CI')",
+            nativeQuery = true
+    )
+    long countByNameNormalizedExceptId(@Param("id") Long id, @Param("name") String name);
 }
 

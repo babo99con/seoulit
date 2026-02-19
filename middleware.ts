@@ -7,6 +7,8 @@ const isBypassPath = (pathname: string) => {
   return (
     pathname.startsWith("/_next") ||
     pathname.startsWith("/api") ||
+    pathname.startsWith("/oauth2") ||
+    pathname.startsWith("/login/oauth2") ||
     pathname === "/favicon.ico" ||
     pathname.includes(".")
   );
@@ -21,8 +23,12 @@ export function middleware(request: NextRequest) {
 
   if (PUBLIC_PATHS.has(pathname)) {
     const token = request.cookies.get("his_access_token")?.value;
+    const forcePasswordChange = request.cookies.get("his_force_password_change")?.value === "1";
     if (token) {
-      return NextResponse.redirect(new URL("/reception", request.url));
+      if (forcePasswordChange) {
+        return NextResponse.redirect(new URL("/my_account?forcePasswordChange=1", request.url));
+      }
+      return NextResponse.redirect(new URL("/", request.url));
     }
     return NextResponse.next();
   }
@@ -32,6 +38,11 @@ export function middleware(request: NextRequest) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("next", pathname);
     return NextResponse.redirect(loginUrl);
+  }
+
+  const forcePasswordChange = request.cookies.get("his_force_password_change")?.value === "1";
+  if (forcePasswordChange && pathname !== "/my_account") {
+    return NextResponse.redirect(new URL("/my_account?forcePasswordChange=1", request.url));
   }
 
   return NextResponse.next();

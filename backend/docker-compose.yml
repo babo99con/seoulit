@@ -74,6 +74,8 @@ services:
       SPRING_DATASOURCE_PASSWORD: "1111"
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
       SPRING_CACHE_TYPE: redis
       APP_STORAGE_TYPE: minio
       MINIO_INTERNAL_URL: http://minio:9000
@@ -83,6 +85,20 @@ services:
       MINIO_BUCKET_STAFF: staff-profile
       MINIO_BUCKET_PATIENT: hospital-files
       APP_JWT_SECRET: hospital-demo-jwt-secret-key-change-me-2026-hospital
+      OAUTH_GOOGLE_CLIENT_ID: ${OAUTH_GOOGLE_CLIENT_ID:-dummy-google-client-id}
+      OAUTH_GOOGLE_CLIENT_SECRET: ${OAUTH_GOOGLE_CLIENT_SECRET:-dummy-google-client-secret}
+      OAUTH_NAVER_CLIENT_ID: ${OAUTH_NAVER_CLIENT_ID:-dummy-naver-client-id}
+      OAUTH_NAVER_CLIENT_SECRET: ${OAUTH_NAVER_CLIENT_SECRET:-dummy-naver-client-secret}
+      OAUTH_KAKAO_CLIENT_ID: ${OAUTH_KAKAO_CLIENT_ID:-dummy-kakao-client-id}
+      OAUTH_KAKAO_CLIENT_SECRET: ${OAUTH_KAKAO_CLIENT_SECRET:-dummy-kakao-client-secret}
+      SPRING_MAIL_HOST: ${SPRING_MAIL_HOST:-smtp.gmail.com}
+      SPRING_MAIL_PORT: ${SPRING_MAIL_PORT:-587}
+      SPRING_MAIL_USERNAME: ${SPRING_MAIL_USERNAME:-}
+      SPRING_MAIL_PASSWORD: ${SPRING_MAIL_PASSWORD:-}
+      APP_VERIFY_EMAIL_MOCK: ${APP_VERIFY_EMAIL_MOCK:-true}
+      APP_VERIFY_SMS_MOCK: ${APP_VERIFY_SMS_MOCK:-true}
+      APP_VERIFY_SMS_PROVIDER_URL: ${APP_VERIFY_SMS_PROVIDER_URL:-}
+      APP_VERIFY_SMS_PROVIDER_AUTH_TOKEN: ${APP_VERIFY_SMS_PROVIDER_AUTH_TOKEN:-}
     ports:
       - "8081:8081"
     restart: unless-stopped

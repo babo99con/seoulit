@@ -8,6 +8,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "minio")
 public class MinioProperties {
     private String endpoint;
+    private String internalUrl;
+    private String publicUrl;
     private String accessKey;
     private String secretKey;
     private String bucketStaff;

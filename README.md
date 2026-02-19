@@ -25,7 +25,8 @@ docker compose down
 
 ### 접속
 
-- 브라우저: `http://localhost:3001/login`
+- 로컬 브라우저: `http://localhost:3001/login`
+- 같은 네트워크 다른 PC: `http://<노트북IP>:3001/login`
 
 ## 기본 계정
 
@@ -129,6 +130,22 @@ docker compose down
 
 - 윈도우 방화벽에서 `3001`, `8081` 인바운드 허용 필요
 - 백엔드는 노트북에서 Docker로 실행 중이어야 함
+- 프론트는 기본적으로 백엔드 주소를 `http(s)://<현재접속호스트>:8081` 로 자동 계산
+- 고정 주소가 필요하면 `.env`에 `NEXT_PUBLIC_AUTH_API_BASE_URL`, `NEXT_PUBLIC_PATIENTS_API_BASE_URL` 지정
+- 첨부 파일(MinIO)까지 외부 PC에서 열려면 `.env`의 `MINIO_PUBLIC_URL`을 `http://<노트북IP>:9000` 으로 지정
+
+### 외부 접속 체크리스트
+
+1. `.env` 확인
+   - `MINIO_PUBLIC_URL=http://<노트북IP>:9000`
+   - (필요 시) `APP_OAUTH_REDIRECT_SUCCESS=http://<노트북IP>:3001/login`
+   - (필요 시) `APP_OAUTH_REDIRECT_FAILURE=http://<노트북IP>:3001/login`
+2. 컨테이너 재시작(백엔드 설정 반영)
+   - `docker compose up -d --build backend frontend`
+3. 외부 PC에서 접속
+   - `http://<노트북IP>:3001/login`
+4. 네이버 개발자센터 Callback URL 확인
+   - `http://<노트북IP>:8081/login/oauth2/code/naver`
 
 ## 점검 명령어
 

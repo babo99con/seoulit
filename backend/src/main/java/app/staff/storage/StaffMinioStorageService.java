@@ -18,6 +18,8 @@ import java.io.InputStream;
 @ConditionalOnProperty(prefix = "app.storage", name = "type", havingValue = "minio")
 public class StaffMinioStorageService implements StaffStorageService {
 
+    private static final String MINIO_REGION = "us-east-1";
+
     private final MinioClient minioClient;
     private final MinioProperties minioProps;
 
@@ -44,9 +46,18 @@ public class StaffMinioStorageService implements StaffStorageService {
             return null;
         }
         try {
-            return minioClient.getPresignedObjectUrl(
+            MinioClient presignClient = minioClient;
+            if (StringUtils.hasText(minioProps.getPublicUrl())) {
+                presignClient = MinioClient.builder()
+                        .endpoint(minioProps.getPublicUrl())
+                        .credentials(minioProps.getAccessKey(), minioProps.getSecretKey())
+                        .build();
+            }
+
+            return presignClient.getPresignedObjectUrl(
                     GetPresignedObjectUrlArgs.builder()
                             .method(Method.GET)
+                            .region(MINIO_REGION)
                             .bucket(minioProps.getBucketStaff())
                             .object(objectKey)
                             .build()

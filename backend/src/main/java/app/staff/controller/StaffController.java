@@ -2,6 +2,12 @@ package app.staff.controller;
 
 import app.common.ApiResponse;
 
+import app.staff.dto.StaffAssignmentUpdateReq;
+import app.staff.dto.StaffAdminPasswordResetReq;
+import app.staff.dto.StaffHistoryItemRes;
+import app.staff.dto.StaffPasswordChangeReq;
+import app.staff.dto.StaffSelfUpdateReq;
+import app.staff.dto.StaffStatusUpdateReq;
 import app.staff.dto.StaffListItem;
 import app.staff.entity.StaffEntity;
 import app.staff.service.StaffService;
@@ -19,6 +25,7 @@ import org.springframework.http.MediaType;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 
 import java.util.List;
 
@@ -40,18 +47,8 @@ public class StaffController {
             @RequestPart("staff") String staffJson,
             @RequestPart(value = "file", required = false) MultipartFile files
     ) throws JsonProcessingException{
-
-        try {
-            // json to object(StaffEntity)
-            ObjectMapper objectMapper = new ObjectMapper();
-            StaffEntity staffentity = objectMapper.readValue(staffJson, StaffEntity.class);
-
-            staffService.createStaff(staffentity, files);
-        }
-        catch (JsonProcessingException jpe)
-        {
-            System.out.println(jpe);
-        }
+        StaffEntity staffentity = objectMapper.readValue(staffJson, StaffEntity.class);
+        staffService.createStaff(staffentity, files);
 
         return ResponseEntity.ok(
                 new ApiResponse<Void>().ok("Staff created successfully")
@@ -124,6 +121,100 @@ public class StaffController {
                         staffService.selectStaffDetail(id)
                                                   )
                                 );
+    }
+
+    @Operation(summary = "Get my staff profile")
+    @GetMapping(value = "/me", produces = "application/json; charset=UTF-8")
+    public ResponseEntity<ApiResponse<StaffEntity>> openMyDetail(Authentication authentication) {
+        StaffEntity me = staffService.selectMyDetail(authentication.getName());
+        return ResponseEntity.ok(new ApiResponse<StaffEntity>().ok(me));
+    }
+
+    @Operation(summary = "Update my staff profile")
+    @PutMapping(value = "/me", consumes = MediaType.APPLICATION_JSON_VALUE, produces = "application/json; charset=UTF-8")
+    public ResponseEntity<ApiResponse<StaffEntity>> updateMyProfile(
+            Authentication authentication,
+            @RequestBody StaffSelfUpdateReq req
+    ) {
+        StaffEntity updated = staffService.updateMyProfile(authentication.getName(), req);
+        return ResponseEntity.ok(new ApiResponse<StaffEntity>().ok(updated));
+    }
+
+    @Operation(summary = "Update my profile photo")
+    @PatchMapping(value = "/me/photo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE, produces = "application/json; charset=UTF-8")
+    public ResponseEntity<ApiResponse<StaffEntity>> updateMyPhoto(
+            Authentication authentication,
+            @RequestPart("file") MultipartFile file
+    ) {
+        StaffEntity updated = staffService.updateMyPhoto(authentication.getName(), file);
+        return ResponseEntity.ok(new ApiResponse<StaffEntity>().ok(updated));
+    }
+
+    @Operation(summary = "Update staff status (admin)")
+    @PatchMapping(value = "/{id}/status", consumes = MediaType.APPLICATION_JSON_VALUE, produces = "application/json; charset=UTF-8")
+    public ResponseEntity<ApiResponse<StaffEntity>> updateStaffStatus(
+            @PathVariable int id,
+            @RequestBody StaffStatusUpdateReq req,
+            Authentication authentication
+    ) {
+        StaffEntity updated = staffService.updateStaffStatus(id, req.getStatusCode(), req.getReason(), authentication.getName());
+        return ResponseEntity.ok(new ApiResponse<StaffEntity>().ok(updated));
+    }
+
+    @Operation(summary = "Update staff department/position assignment (admin)")
+    @PatchMapping(value = "/{id}/assignment", consumes = MediaType.APPLICATION_JSON_VALUE, produces = "application/json; charset=UTF-8")
+    public ResponseEntity<ApiResponse<StaffEntity>> updateStaffAssignment(
+            @PathVariable int id,
+            @RequestBody StaffAssignmentUpdateReq req,
+            Authentication authentication
+    ) {
+        StaffEntity updated = staffService.updateStaffAssignment(
+                id,
+                req.getDeptId(),
+                req.getPositionId(),
+                req.getReason(),
+                authentication.getName()
+        );
+        return ResponseEntity.ok(new ApiResponse<StaffEntity>().ok(updated));
+    }
+
+    @Operation(summary = "Get staff change history")
+    @GetMapping(value = "/{id}/history", produces = "application/json; charset=UTF-8")
+    public ResponseEntity<ApiResponse<List<StaffHistoryItemRes>>> getStaffHistory(
+            @PathVariable int id,
+            Authentication authentication
+    ) {
+        StaffEntity me = staffService.selectMyDetail(authentication.getName());
+        boolean isAdmin = authentication.getAuthorities().stream()
+                .anyMatch(a -> "ROLE_ADMIN".equalsIgnoreCase(a.getAuthority()));
+        if (!isAdmin && me.getId() != id) {
+            return ResponseEntity.status(403)
+                    .body(new ApiResponse<List<StaffHistoryItemRes>>().error("다른 직원의 이력은 조회할 수 없습니다."));
+        }
+
+        List<StaffHistoryItemRes> history = staffService.getStaffHistory(id);
+        return ResponseEntity.ok(new ApiResponse<List<StaffHistoryItemRes>>().ok(history));
+    }
+
+    @Operation(summary = "Change my password")
+    @PatchMapping(value = "/me/password", consumes = MediaType.APPLICATION_JSON_VALUE, produces = "application/json; charset=UTF-8")
+    public ResponseEntity<ApiResponse<Void>> changeMyPassword(
+            Authentication authentication,
+            @RequestBody StaffPasswordChangeReq req
+    ) {
+        staffService.changeMyPassword(authentication.getName(), req.getCurrentPassword(), req.getNewPassword());
+        return ResponseEntity.ok(new ApiResponse<Void>().ok("비밀번호가 변경되었습니다."));
+    }
+
+    @Operation(summary = "Reset staff password (admin)")
+    @PatchMapping(value = "/{id}/password", consumes = MediaType.APPLICATION_JSON_VALUE, produces = "application/json; charset=UTF-8")
+    public ResponseEntity<ApiResponse<Void>> resetStaffPassword(
+            @PathVariable int id,
+            @RequestBody StaffAdminPasswordResetReq req,
+            Authentication authentication
+    ) {
+        staffService.resetStaffPassword(id, req.getNewPassword(), authentication.getName());
+        return ResponseEntity.ok(new ApiResponse<Void>().ok("비밀번호가 초기화되었습니다."));
     }
 
     // U update

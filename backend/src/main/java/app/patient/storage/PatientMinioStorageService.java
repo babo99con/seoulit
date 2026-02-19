@@ -2,9 +2,12 @@ package app.patient.storage;
 
 import app.common.storage.MinioProperties;
 import io.minio.BucketExistsArgs;
+import io.minio.GetPresignedObjectUrlArgs;
 import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
+import io.minio.RemoveObjectArgs;
+import io.minio.http.Method;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
@@ -17,6 +20,8 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @ConditionalOnProperty(prefix = "app.storage", name = "type", havingValue = "minio")
 public class PatientMinioStorageService implements PatientStorageService {
+
+    private static final String MINIO_REGION = "us-east-1";
 
     private final MinioClient minioClient;
     private final MinioProperties minioProps;
@@ -59,6 +64,50 @@ public class PatientMinioStorageService implements PatientStorageService {
 
         } catch (Exception e) {
             throw new RuntimeException("MinIO 파일 업로드 실패", e);
+        }
+    }
+
+    @Override
+    public String getPresignedUrl(String objectKey) {
+        if (!StringUtils.hasText(objectKey)) {
+            return null;
+        }
+        try {
+            MinioClient presignClient = minioClient;
+            if (StringUtils.hasText(minioProps.getPublicUrl())) {
+                presignClient = MinioClient.builder()
+                        .endpoint(minioProps.getPublicUrl())
+                        .credentials(minioProps.getAccessKey(), minioProps.getSecretKey())
+                        .build();
+            }
+
+            return presignClient.getPresignedObjectUrl(
+                    GetPresignedObjectUrlArgs.builder()
+                            .method(Method.GET)
+                            .region(MINIO_REGION)
+                            .bucket(minioProps.getBucketPatient())
+                            .object(objectKey)
+                            .build()
+            );
+        } catch (Exception e) {
+            throw new RuntimeException("MinIO presigned URL 생성 실패", e);
+        }
+    }
+
+    @Override
+    public void delete(String objectKey) {
+        if (!StringUtils.hasText(objectKey)) {
+            return;
+        }
+        try {
+            minioClient.removeObject(
+                    RemoveObjectArgs.builder()
+                            .bucket(minioProps.getBucketPatient())
+                            .object(objectKey)
+                            .build()
+            );
+        } catch (Exception e) {
+            throw new RuntimeException("MinIO 파일 삭제 실패", e);
         }
     }
 }

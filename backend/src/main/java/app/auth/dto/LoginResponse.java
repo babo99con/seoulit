@@ -10,4 +10,5 @@ public class LoginResponse {
     private String tokenType;
     private long expiresIn;
     private AuthUserInfo user;
+    private boolean passwordChangeRequired;
 }

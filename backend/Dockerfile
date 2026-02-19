@@ -6,14 +6,12 @@ COPY build.gradle settings.gradle gradlew gradlew.bat ./
 COPY gradle gradle
 COPY src src
 
-RUN chmod +x gradlew
-RUN sed -i 's/\r$//' gradlew
-RUN ./gradlew bootWar --no-daemon
+RUN gradle bootWar --no-daemon
 
 FROM eclipse-temurin:21-jre
 WORKDIR /app
 
 COPY --from=builder /app/build/libs/*.war app.war
 
-EXPOSE 3001
+EXPOSE 8081
 ENTRYPOINT ["java", "-jar", "/app/app.war"]

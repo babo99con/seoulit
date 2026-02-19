@@ -2,6 +2,7 @@
 
 import MainLayout from "@/components/layout/MainLayout";
 import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import {
   Box,
   Card,
@@ -14,6 +15,8 @@ import MedicalServicesOutlinedIcon from "@mui/icons-material/MedicalServicesOutl
 import FactCheckOutlinedIcon from "@mui/icons-material/FactCheckOutlined";
 import AdminPanelSettingsOutlinedIcon from "@mui/icons-material/AdminPanelSettingsOutlined";
 import BadgeOutlinedIcon from "@mui/icons-material/BadgeOutlined";
+import { getSessionUser } from "@/lib/session";
+import { getVisibleModulesByRole } from "@/lib/roleAccess";
 
 const ROLES = [
   {
@@ -65,10 +68,40 @@ const ROLES = [
 
 export default function HomePage() {
   const router = useRouter();
+  const [role, setRole] = useState<string | null>(null);
+  const [autoRedirecting, setAutoRedirecting] = useState(false);
+
+  useEffect(() => {
+    setRole(getSessionUser()?.role ?? null);
+  }, []);
+
+  const visibleModules = useMemo(() => {
+    const allowed = new Set(getVisibleModulesByRole(role));
+    return ROLES.filter((item) => allowed.has(item.key));
+  }, [role]);
+
+  useEffect(() => {
+    if (!role) return;
+    if (visibleModules.length !== 1) return;
+    setAutoRedirecting(true);
+    router.replace(visibleModules[0].href);
+  }, [role, router, visibleModules]);
 
   return (
     <MainLayout showSidebar={false}>
       <Stack spacing={3}>
+        {autoRedirecting ? (
+          <Box
+            sx={{
+              p: 3,
+              borderRadius: 3,
+              border: "1px solid var(--line)",
+              bgcolor: "rgba(255,255,255,0.82)",
+            }}
+          >
+            <Typography sx={{ fontWeight: 700 }}>역할 홈으로 이동 중입니다...</Typography>
+          </Box>
+        ) : null}
         <Box
           sx={{
             display: "grid",
@@ -80,7 +113,7 @@ export default function HomePage() {
             },
           }}
         >
-          {ROLES.map((role) => (
+          {visibleModules.map((role) => (
             <Card
               key={role.key}
               onClick={() => router.push(role.href)}

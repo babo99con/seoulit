@@ -5,8 +5,9 @@ import { Box, IconButton } from "@mui/material";
 import Navbar from "./Navbar";
 import Sidebar from "./Sidebar";
 import { usePathname } from "next/navigation";
-import { getAccessToken } from "@/lib/session";
+import { getAccessToken, getSessionUser } from "@/lib/session";
 import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
+import { canAccessPath, getDefaultPathByRole } from "@/lib/roleAccess";
 
 export default function MainLayout({
   children,
@@ -28,6 +29,20 @@ export default function MainLayout({
       window.location.replace(`/login?next=${next}`);
       return;
     }
+
+    const user = getSessionUser();
+    if (!user && pathname !== "/login") {
+      const next = encodeURIComponent(pathname || "/reception");
+      window.location.replace(`/login?next=${next}`);
+      return;
+    }
+
+    if (user && !canAccessPath(user.role, pathname || "/")) {
+      window.alert("권한이 없습니다.");
+      window.location.replace(getDefaultPathByRole(user.role));
+      return;
+    }
+
     setAuthChecked(true);
   }, [pathname]);
 

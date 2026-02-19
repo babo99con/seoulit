@@ -10,10 +10,13 @@ import java.util.Date;
 public class DepartmentListItem {
     private Long id;
     private String name;
+    private String description;
+    private String location;
     private String buildingNo;
     private String floorNo;
     private String roomNo;
     private String extension;
+    private Long headStaffId;
     private String isActive;
     private Integer sortOrder;
     private Date createdAt;

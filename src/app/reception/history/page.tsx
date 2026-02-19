@@ -18,6 +18,7 @@ import {
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import { fetchAllVisitHistoryApi, type VisitHistory } from "@/lib/visitHistoryApi";
+import { toHistoryEventLabel } from "@/lib/historyLabels";
 
 function formatDateTime(value?: string | null) {
   if (!value) return "-";
@@ -64,6 +65,7 @@ export default function ReceptionHistoryPage() {
       return (
         String(item.visitId ?? "").includes(k) ||
         (item.eventType ?? "").toLowerCase().includes(k) ||
+        toHistoryEventLabel(item.eventType).toLowerCase().includes(k) ||
         (item.fieldName ?? "").toLowerCase().includes(k) ||
         (item.oldValue ?? "").toLowerCase().includes(k) ||
         (item.newValue ?? "").toLowerCase().includes(k) ||
@@ -141,7 +143,7 @@ export default function ReceptionHistoryPage() {
                 <TableRow key={item.id} hover>
                   <TableCell>{formatDateTime(item.changedAt)}</TableCell>
                   <TableCell>{item.visitId}</TableCell>
-                  <TableCell>{item.eventType ?? "-"}</TableCell>
+                  <TableCell>{toHistoryEventLabel(item.eventType)}</TableCell>
                   <TableCell>{item.fieldName ?? "-"}</TableCell>
                   <TableCell>{item.oldValue ?? "-"}</TableCell>
                   <TableCell>{item.newValue ?? "-"}</TableCell>

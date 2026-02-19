@@ -202,6 +202,16 @@ public interface StaffRepository extends JpaRepository<StaffEntity, Integer> {
     )
     Optional<StaffEntity> findByUsernameNormalized(@Param("username") String username);
 
+    @Query(
+            value = "select count(*) from CMH.STAFF s " +
+                    "where s.ID <> :id and NLSSORT(TRIM(s.USERNAME), 'NLS_SORT=BINARY_CI') = " +
+                    "NLSSORT(TRIM(:username), 'NLS_SORT=BINARY_CI')",
+            nativeQuery = true
+    )
+    long countByUsernameNormalizedExceptId(@Param("id") Integer id, @Param("username") String username);
+
     long countByDeptId(Long deptId);
+
+    long countByPositionId(Long positionId);
 }
 

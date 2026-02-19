@@ -59,7 +59,10 @@ function resolveFileUrl(url?: string | null) {
   if (!url) return "";
   if (url.startsWith("http://") || url.startsWith("https://")) return url;
   const base =
-    process.env.NEXT_PUBLIC_PATIENTS_API_BASE_URL ?? "http://localhost:8081";
+    process.env.NEXT_PUBLIC_PATIENTS_API_BASE_URL?.trim() ||
+    (typeof window !== "undefined"
+      ? `${window.location.protocol === "https:" ? "https:" : "http:"}//${window.location.hostname}:8081`
+      : "http://127.0.0.1:8081");
   return `${base}${url.startsWith("/") ? "" : "/"}${url}`;
 }
 
