@@ -33,6 +33,69 @@ WHEN NOT MATCHED THEN
 
 COMMIT;
 
+MERGE INTO CMH.STAFF_BOARD_POST t
+USING (
+    SELECT 1001 AS id, 'NOTICE' AS category, '필독' AS post_type,
+           '개인정보보호 교육 일정 안내' AS title,
+           'TYPE:공지\n전 직원 대상 개인정보보호 교육이 진행됩니다.' AS content,
+           '2026-03-05' AS event_date,
+           NULL AS location,
+           NULL AS subject_name,
+           NULL AS department_name,
+           'admin' AS author_id,
+           '시스템 관리자' AS author_name,
+           '1234' AS delete_pin,
+           'N' AS is_deleted
+      FROM dual
+    UNION ALL
+    SELECT 1002, 'SCHEDULE', '공지',
+           '주간 운영회의',
+           '각 부서 주간 이슈를 공유합니다.',
+           '월 09:00',
+           '본관 3층 회의실',
+           NULL,
+           NULL,
+           'admin',
+           '시스템 관리자',
+           '1234',
+           'N'
+      FROM dual
+    UNION ALL
+    SELECT 1003, 'EVENT', '공지',
+           '박OO · 결혼',
+           'TYPE:결혼',
+           '2026-03-12',
+           NULL,
+           '박OO',
+           '원무팀',
+           'admin',
+           '시스템 관리자',
+           '1234',
+           'N'
+      FROM dual
+) s
+ON (t.ID = s.id)
+WHEN MATCHED THEN
+  UPDATE SET
+    t.CATEGORY = s.category,
+    t.POST_TYPE = s.post_type,
+    t.TITLE = s.title,
+    t.CONTENT = s.content,
+    t.EVENT_DATE = s.event_date,
+    t.LOCATION = s.location,
+    t.SUBJECT_NAME = s.subject_name,
+    t.DEPARTMENT_NAME = s.department_name,
+    t.AUTHOR_ID = s.author_id,
+    t.AUTHOR_NAME = s.author_name,
+    t.DELETE_PIN = s.delete_pin,
+    t.IS_DELETED = s.is_deleted,
+    t.UPDATED_AT = SYSDATE
+WHEN NOT MATCHED THEN
+  INSERT (ID, CATEGORY, POST_TYPE, TITLE, CONTENT, EVENT_DATE, LOCATION, SUBJECT_NAME, DEPARTMENT_NAME, AUTHOR_ID, AUTHOR_NAME, DELETE_PIN, IS_DELETED, CREATED_AT, UPDATED_AT)
+  VALUES (s.id, s.category, s.post_type, s.title, s.content, s.event_date, s.location, s.subject_name, s.department_name, s.author_id, s.author_name, s.delete_pin, s.is_deleted, SYSDATE, SYSDATE);
+
+COMMIT;
+
 MERGE INTO CMH.VISIT_REG t
 USING (
     SELECT 1 AS id, 'V20260213-000001' AS visit_no, 1 AS patient_id, 'P000001' AS patient_no, '홍길동' AS patient_name,
