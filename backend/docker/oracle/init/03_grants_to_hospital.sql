@@ -41,6 +41,8 @@ BEGIN
     grant_if_table_exists('CMH', 'STAFF_CHANGE_REQUEST');
     grant_if_table_exists('CMH', 'STAFF_AUDIT_LOG');
     grant_if_table_exists('CMH', 'STAFF_BOARD_POST');
+    grant_if_table_exists('CMH', 'STAFF_COMMON_DOC');
+    grant_if_table_exists('CMH', 'STAFF_COMMON_DOC_LINE');
     grant_if_table_exists('CMH', 'VISIT_REG');
     grant_if_table_exists('CMH', 'VISIT_HISTORY');
     grant_if_table_exists('CMH', 'VISIT_RESERVATION');
@@ -66,6 +68,8 @@ BEGIN
     grant_if_sequence_exists('CMH', 'STAFF_CHANGE_REQ_SEQ');
     grant_if_sequence_exists('CMH', 'STAFF_AUDIT_LOG_SEQ');
     grant_if_sequence_exists('CMH', 'STAFF_BOARD_POST_SEQ');
+    grant_if_sequence_exists('CMH', 'STAFF_COMMON_DOC_SEQ');
+    grant_if_sequence_exists('CMH', 'STAFF_COMMON_DOC_LINE_SEQ');
     grant_if_sequence_exists('CMH', 'VISIT_REG_SEQ');
     grant_if_sequence_exists('CMH', 'VISIT_HISTORY_SEQ');
     grant_if_sequence_exists('CMH', 'MEDICAL_ENCOUNTER_SEQ');

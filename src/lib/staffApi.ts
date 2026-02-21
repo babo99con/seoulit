@@ -308,6 +308,13 @@ export const createStaffApi = async (payload: StaffCreateReq): Promise<void> => 
   }
 };
 
+export const deleteStaffApi = async (staffId: number): Promise<void> => {
+  const res = await api.delete<ApiResponse<void>>(`/api/jpa/medical-staff/${staffId}`);
+  if (!res.data.success) {
+    throw new Error(res.data.message || "Delete failed");
+  }
+};
+
 export const createDepartmentApi = async (payload: {
   name: string;
   description?: string;

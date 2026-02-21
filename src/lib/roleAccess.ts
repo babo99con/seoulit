@@ -14,15 +14,16 @@ export const getDefaultPathByRole = (role?: string | null) => {
   if (normalized === "DOCTOR") return "/doctor";
   if (normalized === "NURSE") return "/nurse";
   if (normalized === "STAFF") return "/staff";
+  if (normalized === "RECEPTION") return "/reception";
   return "/reception";
 };
 
 const ACCESS_RULES: Record<string, string[]> = {
   ADMIN: ["*"],
-  DOCTOR: ["/", "/doctor", "/patients", "/consents", "/insurances", "/display", "/my_account"],
-  NURSE: ["/", "/nurse", "/patients", "/display", "/my_account"],
-  RECEPTION: ["/", "/reception", "/patients", "/consents", "/insurances", "/display", "/my_account"],
-  STAFF: ["/", "/staff", "/my_account"],
+  DOCTOR: ["/", "/doctor", "/doctor/*", "/patients", "/patients/*", "/consents", "/consents/*", "/insurances", "/insurances/*", "/display", "/staff/notices", "/staff/schedule", "/staff/events", "/board/notices", "/board/schedule", "/board/events", "/board/docs", "/board/leave", "/board/shifts", "/board/shifts/*", "/board/training", "/board/handover", "/board/meetings", "/my_account"],
+  NURSE: ["/", "/nurse", "/nurse/*", "/patients", "/patients/*", "/display", "/staff/notices", "/staff/schedule", "/staff/events", "/board/notices", "/board/schedule", "/board/events", "/board/docs", "/board/leave", "/board/shifts", "/board/shifts/*", "/board/training", "/board/handover", "/board/meetings", "/my_account"],
+  RECEPTION: ["/", "/reception", "/reception/*", "/patients", "/patients/*", "/consents", "/consents/*", "/insurances", "/insurances/*", "/display", "/staff/notices", "/staff/schedule", "/staff/events", "/board/notices", "/board/schedule", "/board/events", "/board/docs", "/board/leave", "/board/shifts", "/board/shifts/*", "/board/training", "/board/handover", "/board/meetings", "/my_account"],
+  STAFF: ["/", "/staff", "/staff/notices", "/staff/schedule", "/staff/events", "/board/notices", "/board/schedule", "/board/events", "/board/docs", "/board/leave", "/board/shifts", "/board/shifts/*", "/board/training", "/board/handover", "/board/meetings", "/my_account"],
   UNKNOWN: ["/", "/reception", "/my_account"],
 };
 
@@ -31,14 +32,58 @@ export const canAccessPath = (role: string | null | undefined, pathname: string)
   const rules = ACCESS_RULES[normalized] ?? ACCESS_RULES.UNKNOWN;
   if (rules.includes("*")) return true;
 
-  return rules.some((base) => pathname === base || pathname.startsWith(`${base}/`));
+  return rules.some((base) => {
+    if (base.endsWith("/*")) {
+      const prefix = base.slice(0, -2);
+      return pathname === prefix || pathname.startsWith(`${prefix}/`);
+    }
+    return pathname === base;
+  });
 };
 
 export const getVisibleModulesByRole = (role?: string | null) => {
   const normalized = normalizeRole(role);
   if (normalized === "ADMIN") return ["doctor", "nurse", "staff", "reception", "admin"];
-  if (normalized === "DOCTOR") return ["doctor"];
-  if (normalized === "NURSE") return ["nurse"];
+  if (normalized === "DOCTOR") return ["doctor", "staff"];
+  if (normalized === "NURSE") return ["nurse", "staff"];
+  if (normalized === "RECEPTION") return ["reception", "staff"];
   if (normalized === "STAFF") return ["staff"];
-  return ["reception"];
+  return ["reception", "staff"];
+};
+
+export const deriveOperationalRole = (
+  authRole?: string | null,
+  domainRole?: string | null,
+  positionName?: string | null,
+  departmentName?: string | null
+) => {
+  const base = normalizeRole(authRole);
+  if (base !== "STAFF") return base;
+
+  const fromDomain = normalizeRole(domainRole);
+  if (fromDomain !== "STAFF" && fromDomain !== "UNKNOWN") return fromDomain;
+
+  const position = (positionName || "").toLowerCase();
+  if (position.includes("의사") || position.includes("doctor")) return "DOCTOR";
+  if (position.includes("간호") || position.includes("nurse")) return "NURSE";
+  if (
+    position.includes("원무") ||
+    position.includes("접수") ||
+    position.includes("reception")
+  ) {
+    return "RECEPTION";
+  }
+
+  const department = (departmentName || "").toLowerCase();
+  if (department.includes("진료") || department.includes("의국") || department.includes("doctor")) {
+    return "DOCTOR";
+  }
+  if (department.includes("간호") || department.includes("nurse")) {
+    return "NURSE";
+  }
+  if (department.includes("원무") || department.includes("접수") || department.includes("reception")) {
+    return "RECEPTION";
+  }
+
+  return "STAFF";
 };

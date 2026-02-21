@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import MainLayout from "@/components/layout/MainLayout";
 import {
   Alert,
@@ -18,14 +18,12 @@ import {
   DialogTitle,
   Divider,
   FormControl,
-  FormControlLabel,
   IconButton,
   InputLabel,
   MenuItem,
   Select,
   Snackbar,
   Stack,
-  Switch,
   Tab,
   Tabs,
   TextField,
@@ -38,6 +36,8 @@ import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import LockResetRoundedIcon from "@mui/icons-material/LockResetRounded";
 import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
 import SaveRoundedIcon from "@mui/icons-material/SaveRounded";
+import ManageAccountsRoundedIcon from "@mui/icons-material/ManageAccountsRounded";
+import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import {
   approveRegisterRequestApi,
   rejectRegisterRequestApi,
@@ -45,6 +45,7 @@ import {
 
 import {
   createDepartmentApi,
+  deleteStaffApi,
   createPositionApi,
   createStaffApi,
   createStaffCredentialApi,
@@ -123,6 +124,7 @@ const formatDepartmentLocation = (dept: DepartmentOption) => {
 
 export default function StaffPage() {
   const router = useRouter();
+  const pathname = usePathname();
   const [panelQuery, setPanelQuery] = React.useState("staff");
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -196,7 +198,9 @@ export default function StaffPage() {
     title: "입력 확인",
     message: "",
   });
-  const [includeInactiveMaster, setIncludeInactiveMaster] = React.useState(false);
+  const [staffListTab, setStaffListTab] = React.useState<"ACTIVE" | "INACTIVE">("ACTIVE");
+  const [departmentListTab, setDepartmentListTab] = React.useState<"ACTIVE" | "INACTIVE">("ACTIVE");
+  const [positionListTab, setPositionListTab] = React.useState<"ACTIVE" | "INACTIVE">("ACTIVE");
   const [departmentKeyword, setDepartmentKeyword] = React.useState("");
   const [positionKeyword, setPositionKeyword] = React.useState("");
   const [usernameCheckLoading, setUsernameCheckLoading] = React.useState(false);
@@ -214,6 +218,8 @@ export default function StaffPage() {
   const me = React.useMemo(() => getSessionUser(), []);
   const role = normalizeRole(me?.role);
   const isAdmin = role === "ADMIN";
+  const isSettingsPage = pathname.startsWith("/staff/setting");
+  const isApprovalPage = pathname.startsWith("/staff/approval");
 
   const selectedStaff = React.useMemo(
     () => staffs.find((staff) => staff.id === selectedId) ?? null,
@@ -248,6 +254,18 @@ export default function StaffPage() {
   const pendingSignupStaffs = staffs.filter(
     (s) => (s.statusCode ?? "").toUpperCase() === "PENDING_APPROVAL" || (s.status ?? "").toUpperCase() === "PENDING_APPROVAL"
   );
+  const activeStaffs = visibleStaffs.filter((s) => {
+    const status = (s.statusCode ?? s.status ?? "").toUpperCase();
+    return status === "ACTIVE";
+  });
+  const inactiveStaffs = visibleStaffs.filter((s) => {
+    const status = (s.statusCode ?? s.status ?? "").toUpperCase();
+    return status !== "ACTIVE" && status !== "PENDING_APPROVAL";
+  });
+  const activeDepartments = visibleDepartments.filter((d) => (d.isActive ?? "Y") === "Y");
+  const inactiveDepartments = visibleDepartments.filter((d) => (d.isActive ?? "Y") !== "Y");
+  const activePositions = visiblePositions.filter((p) => (p.isActive ?? "Y") === "Y");
+  const inactivePositions = visiblePositions.filter((p) => (p.isActive ?? "Y") !== "Y");
   const positionStaffCountMap = React.useMemo(() => {
     const map = new Map<number, number>();
     for (const staff of staffs) {
@@ -275,9 +293,53 @@ export default function StaffPage() {
     }
     return map;
   }, [staffs]);
+  const departmentNameById = React.useMemo(() => {
+    const map = new Map<number, string>();
+    for (const dept of departments) {
+      if (dept.id == null) continue;
+      map.set(Number(dept.id), dept.name);
+    }
+    return map;
+  }, [departments]);
+  const positionNameById = React.useMemo(() => {
+    const map = new Map<number, string>();
+    for (const position of positions) {
+      if (position.id == null) continue;
+      map.set(Number(position.id), position.title);
+    }
+    return map;
+  }, [positions]);
+
+  const resolveDepartmentName = React.useCallback(
+    (staff: StaffListItem) => {
+      if (staff.departmentName) return staff.departmentName;
+      if (staff.deptId == null) return "-";
+      return departmentNameById.get(Number(staff.deptId)) ?? "-";
+    },
+    [departmentNameById]
+  );
+
+  const resolvePositionName = React.useCallback(
+    (staff: StaffListItem) => {
+      if (staff.positionName) return staff.positionName;
+      if (staff.positionId == null) return "-";
+      return positionNameById.get(Number(staff.positionId)) ?? "-";
+    },
+    [positionNameById]
+  );
   const activeCount = staffs.filter((s) => (s.statusCode ?? "").toUpperCase() === "ACTIVE").length;
 
   React.useEffect(() => {
+    if (!isAdmin && pathname === "/staff") {
+      router.replace("/staff/notices");
+      return;
+    }
+
+    if (isSettingsPage) return;
+    if (isApprovalPage && isAdmin) {
+      setViewTab("APPROVAL");
+      return;
+    }
     const panel = (panelQuery || "staff").toLowerCase();
     if (panel === "approval") {
       setViewTab("APPROVAL");
@@ -292,9 +354,11 @@ export default function StaffPage() {
       return;
     }
     setViewTab("STAFF");
-  }, [panelQuery, isAdmin]);
+  }, [panelQuery, isAdmin, isSettingsPage, isApprovalPage, pathname, router]);
 
   React.useEffect(() => {
+    if (isSettingsPage) return;
+    if (isApprovalPage) return;
     const syncFromUrl = () => {
       const panel = new URLSearchParams(window.location.search).get("panel") || "staff";
       setPanelQuery(panel.toLowerCase());
@@ -302,11 +366,20 @@ export default function StaffPage() {
     syncFromUrl();
     window.addEventListener("popstate", syncFromUrl);
     return () => window.removeEventListener("popstate", syncFromUrl);
-  }, []);
+  }, [isSettingsPage, isApprovalPage]);
+
+  React.useEffect(() => {
+    if (!isSettingsPage) return;
+    if (!isAdmin) {
+      router.replace("/staff/notices");
+      return;
+    }
+    setViewTab("DEPARTMENT");
+  }, [isSettingsPage, isAdmin, router]);
 
   const moveStaffPanel = React.useCallback((panel: "staff" | "approval") => {
     setPanelQuery(panel);
-    router.replace(panel === "staff" ? "/staff?panel=staff" : "/staff?panel=approval");
+    router.replace(panel === "staff" ? "/staff" : "/staff/approval");
   }, [router]);
   const [photoPreviewUrl, setPhotoPreviewUrl] = React.useState<string | null>(null);
 
@@ -386,8 +459,8 @@ export default function StaffPage() {
     if (isAdmin) {
       const [list, deptList, positionList] = await Promise.all([
         fetchStaffListApi(false),
-        fetchDepartmentsApi(!includeInactiveMaster).catch(() => []),
-        fetchPositionsApi(!includeInactiveMaster).catch(() => []),
+        fetchDepartmentsApi(false).catch(() => []),
+        fetchPositionsApi(false).catch(() => []),
       ]);
       setStaffs(list);
       setDepartments(deptList);
@@ -399,7 +472,7 @@ export default function StaffPage() {
     const myProfile = await fetchMyStaffProfileApi();
     setStaffs([myProfile]);
     if (!selectedId) setSelectedId(myProfile.id ?? null);
-  }, [includeInactiveMaster, isAdmin, me, selectedId]);
+  }, [isAdmin, me, selectedId]);
 
   const triggerModalShake = React.useCallback((setShake: React.Dispatch<React.SetStateAction<boolean>>) => {
     setShake(false);
@@ -731,6 +804,40 @@ export default function StaffPage() {
     }
   };
 
+  const handleDeleteStaff = async (staffId: number) => {
+    if (!window.confirm("해당 의료진을 삭제(퇴사 처리)하시겠습니까?")) return;
+    try {
+      setError(null);
+      await deleteStaffApi(staffId);
+      await reloadStaffs();
+      setNotice("의료진을 삭제 처리했습니다.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "의료진 삭제에 실패했습니다.");
+    }
+  };
+
+  const handleDeleteDepartment = async (id: number) => {
+    if (!window.confirm("해당 부서를 삭제하시겠습니까?")) return;
+    try {
+      await deactivateDepartmentApi(id);
+      setDepartments(await fetchDepartmentsApi(false));
+      setNotice("부서를 삭제했습니다.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "부서 삭제에 실패했습니다.");
+    }
+  };
+
+  const handleDeletePosition = async (id: number) => {
+    if (!window.confirm("해당 직책을 삭제하시겠습니까?")) return;
+    try {
+      await deactivatePositionApi(id);
+      setPositions(await fetchPositionsApi(false));
+      setNotice("직책을 삭제했습니다.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "직책 삭제에 실패했습니다.");
+    }
+  };
+
   const handleCreateDepartment = async () => {
     try {
       if (!newDepartmentName.trim()) {
@@ -758,7 +865,7 @@ export default function StaffPage() {
       setNewDepartmentRoomNo("");
       setNewDepartmentExt("");
       setNewDepartmentHeadStaffId("");
-      setDepartments(await fetchDepartmentsApi(!includeInactiveMaster));
+      setDepartments(await fetchDepartmentsApi(false));
       setNotice("부서를 등록했습니다.");
       return true;
     } catch (e) {
@@ -782,7 +889,7 @@ export default function StaffPage() {
       await createPositionApi({ title: newPositionTitle.trim(), positionCode: newPositionCode.trim() || undefined });
       setNewPositionTitle("");
       setNewPositionCode("");
-      setPositions(await fetchPositionsApi(!includeInactiveMaster));
+      setPositions(await fetchPositionsApi(false));
       setNotice("직책을 등록했습니다.");
       return true;
     } catch (e) {
@@ -797,7 +904,7 @@ export default function StaffPage() {
   const handleDeactivateDepartment = async (id: number) => {
     try {
       await deactivateDepartmentApi(id);
-      setDepartments(await fetchDepartmentsApi(!includeInactiveMaster));
+      setDepartments(await fetchDepartmentsApi(false));
       setNotice("부서를 비활성화했습니다.");
     } catch (e) {
       setError(e instanceof Error ? e.message : "부서 비활성화에 실패했습니다.");
@@ -807,7 +914,7 @@ export default function StaffPage() {
   const handleDeactivatePosition = async (id: number) => {
     try {
       await deactivatePositionApi(id);
-      setPositions(await fetchPositionsApi(!includeInactiveMaster));
+      setPositions(await fetchPositionsApi(false));
       setNotice("직책을 비활성화했습니다.");
     } catch (e) {
       setError(e instanceof Error ? e.message : "직책 비활성화에 실패했습니다.");
@@ -834,7 +941,7 @@ export default function StaffPage() {
         isActive: editDepartment.isActive ?? "Y",
       });
       setEditDepartment(null);
-      setDepartments(await fetchDepartmentsApi(!includeInactiveMaster));
+      setDepartments(await fetchDepartmentsApi(false));
       setNotice("부서 정보를 수정했습니다.");
     } catch (e) {
       setError(e instanceof Error ? e.message : "부서 수정에 실패했습니다.");
@@ -856,7 +963,7 @@ export default function StaffPage() {
         isActive: editPosition.isActive ?? "Y",
       });
       setEditPosition(null);
-      setPositions(await fetchPositionsApi(!includeInactiveMaster));
+      setPositions(await fetchPositionsApi(false));
       setNotice("직책 정보를 수정했습니다.");
     } catch (e) {
       setError(e instanceof Error ? e.message : "직책 수정에 실패했습니다.");
@@ -887,35 +994,37 @@ export default function StaffPage() {
           </Alert>
         </Snackbar>
 
-        <Tabs
-          value={viewTab === "APPROVAL" ? "APPROVAL" : "STAFF"}
-          onChange={(_, v) => moveStaffPanel(v === "APPROVAL" ? "approval" : "staff")}
-          sx={{
-            bgcolor: "rgba(255,255,255,0.65)",
-            borderRadius: 2,
-            px: 1,
-            border: "1px solid var(--line)",
-          }}
-        >
-          <Tab value="STAFF" label="의료진" />
-          {isAdmin ? <Tab value="APPROVAL" label="가입 승인" /> : null}
-        </Tabs>
+        {isSettingsPage ? (
+          <Tabs
+            value={viewTab === "POSITION" ? "POSITION" : "DEPARTMENT"}
+            onChange={(_, v) => setViewTab(v === "POSITION" ? "POSITION" : "DEPARTMENT")}
+            sx={{
+              bgcolor: "rgba(255,255,255,0.65)",
+              borderRadius: 2,
+              px: 1,
+              border: "1px solid var(--line)",
+            }}
+          >
+            <Tab value="DEPARTMENT" label="부서 관리" />
+            <Tab value="POSITION" label="직책 관리" />
+          </Tabs>
+        ) : (
+          <Tabs
+            value={viewTab === "APPROVAL" ? "APPROVAL" : "STAFF"}
+            onChange={(_, v) => moveStaffPanel(v === "APPROVAL" ? "approval" : "staff")}
+            sx={{
+              bgcolor: "rgba(255,255,255,0.65)",
+              borderRadius: 2,
+              px: 1,
+              border: "1px solid var(--line)",
+            }}
+          >
+            <Tab value="STAFF" label="의료진" />
+            {isAdmin ? <Tab value="APPROVAL" label="가입 승인" /> : null}
+          </Tabs>
+        )}
 
-        {isAdmin ? (
-          <Stack direction="row" justifyContent="flex-end" sx={{ mt: -1 }}>
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={includeInactiveMaster}
-                  onChange={(e) => setIncludeInactiveMaster(e.target.checked)}
-                />
-              }
-              label="비활성 포함"
-            />
-          </Stack>
-        ) : null}
-
-            {viewTab === "STAFF" ? (
+            {!isSettingsPage && viewTab === "STAFF" ? (
         <Card sx={{ borderRadius: 3, border: "1px solid var(--line)", minHeight: 540 }}>
           <CardContent sx={{ p: 2 }}>
             <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.5 }}>
@@ -1010,8 +1119,17 @@ export default function StaffPage() {
               </FormControl>
             </Box>
 
+            <Tabs
+              value={staffListTab}
+              onChange={(_, v) => setStaffListTab(v === "INACTIVE" ? "INACTIVE" : "ACTIVE")}
+              sx={{ mb: 1 }}
+            >
+              <Tab value="ACTIVE" label={`재직 목록(${activeStaffs.length})`} />
+              <Tab value="INACTIVE" label={`비활성 목록(${inactiveStaffs.length})`} />
+            </Tabs>
+
             <Stack spacing={1}>
-              {visibleStaffs.map((staff) => {
+              {(staffListTab === "ACTIVE" ? activeStaffs : inactiveStaffs).map((staff) => {
                 const selected = selectedId === staff.id;
                 return (
                   <Box
@@ -1032,7 +1150,39 @@ export default function StaffPage() {
                   >
                     <Stack direction="row" justifyContent="space-between" alignItems="center">
                       <Typography fontWeight={800}>{toText(staff.fullName)}</Typography>
-                      <Chip label={toText(staff.statusCode, "ACTIVE")} size="small" />
+                      <Stack direction="row" spacing={0.5} alignItems="center">
+                        <Chip label={toText(staff.statusCode, "ACTIVE")} size="small" />
+                        {staffListTab === "INACTIVE" && isAdmin ? (
+                          <>
+                            <Tooltip title="관리">
+                              <IconButton
+                                size="small"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  setSelectedId(staff.id ?? null);
+                                  setTab("overview");
+                                  setDetailSectionTab("admin");
+                                  setDetailModalOpen(true);
+                                }}
+                              >
+                                <ManageAccountsRoundedIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="삭제">
+                              <IconButton
+                                size="small"
+                                color="error"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  if (staff.id) void handleDeleteStaff(staff.id);
+                                }}
+                              >
+                                <DeleteOutlineRoundedIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          </>
+                        ) : null}
+                      </Stack>
                     </Stack>
                     <Typography sx={{ color: "var(--muted)", fontSize: 12, mt: 0.5 }}>
                       {toText(staff.departmentName)} · {toText(staff.positionName)}
@@ -1041,9 +1191,9 @@ export default function StaffPage() {
                   </Box>
                 );
               })}
-              {!visibleStaffs.length && !loading ? (
+              {(staffListTab === "ACTIVE" ? activeStaffs : inactiveStaffs).length === 0 && !loading ? (
                 <Typography sx={{ color: "var(--muted)", py: 2, textAlign: "center" }}>
-                  조회된 의료진이 없습니다.
+                  {staffListTab === "ACTIVE" ? "조회된 의료진이 없습니다." : "비활성 의료진이 없습니다."}
                 </Typography>
               ) : null}
             </Stack>
@@ -1051,28 +1201,30 @@ export default function StaffPage() {
         </Card>
         ) : null}
 
-        {viewTab === "DEPARTMENT" && isAdmin ? (
+        {viewTab === "DEPARTMENT" ? (
           <Card sx={{ borderRadius: 3, border: "1px solid var(--line)" }}>
             <CardContent sx={{ p: 2 }}>
               <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.25 }}>
                 <Typography fontWeight={800}>부서 마스터</Typography>
-                <Button
-                  size="small"
-                  variant="contained"
-                  onClick={() => {
-                    setNewDepartmentName("");
-                    setNewDepartmentDescription("");
-                    setNewDepartmentLocation("");
-                    setNewDepartmentBuildingNo("");
-                    setNewDepartmentFloorNo("");
-                    setNewDepartmentRoomNo("");
-                    setNewDepartmentExt("");
-                    setNewDepartmentHeadStaffId("");
-                    setCreateDepartmentOpen(true);
-                  }}
-                >
-                  부서 등록
-                </Button>
+                {isAdmin ? (
+                  <Button
+                    size="small"
+                    variant="contained"
+                    onClick={() => {
+                      setNewDepartmentName("");
+                      setNewDepartmentDescription("");
+                      setNewDepartmentLocation("");
+                      setNewDepartmentBuildingNo("");
+                      setNewDepartmentFloorNo("");
+                      setNewDepartmentRoomNo("");
+                      setNewDepartmentExt("");
+                      setNewDepartmentHeadStaffId("");
+                      setCreateDepartmentOpen(true);
+                    }}
+                  >
+                    부서 등록
+                  </Button>
+                ) : null}
               </Stack>
               <TextField
                 size="small"
@@ -1082,9 +1234,29 @@ export default function StaffPage() {
                 onChange={(e) => setDepartmentKeyword(e.target.value)}
                 sx={{ mb: 1.5, maxWidth: 360 }}
               />
+              <Tabs
+                value={departmentListTab}
+                onChange={(_, v) => setDepartmentListTab(v === "INACTIVE" ? "INACTIVE" : "ACTIVE")}
+                sx={{ mb: 1 }}
+              >
+                <Tab value="ACTIVE" label={`활성 부서(${activeDepartments.length})`} />
+                <Tab value="INACTIVE" label={`비활성 부서(${inactiveDepartments.length})`} />
+              </Tabs>
               <Stack spacing={1}>
-                {visibleDepartments.map((dept) => (
-                  <Stack key={dept.id} direction="row" justifyContent="space-between" alignItems="center" sx={{ p: 1.25, border: "1px solid var(--line)", borderRadius: 2 }}>
+                {(departmentListTab === "ACTIVE" ? activeDepartments : inactiveDepartments).map((dept) => (
+                  <Stack
+                    key={dept.id}
+                    direction="row"
+                    justifyContent="space-between"
+                    alignItems="center"
+                    onClick={isAdmin && departmentListTab === "ACTIVE" ? () => setEditDepartment(dept) : undefined}
+                    sx={{
+                      p: 1.25,
+                      border: "1px solid var(--line)",
+                      borderRadius: 2,
+                      cursor: isAdmin && departmentListTab === "ACTIVE" ? "pointer" : "default",
+                    }}
+                  >
                     <Box>
                       <Stack direction="row" spacing={0.75} alignItems="center">
                         <Typography fontWeight={700}>{dept.name}</Typography>
@@ -1095,34 +1267,64 @@ export default function StaffPage() {
                       </Typography>
                     </Box>
                     <Stack direction="row" spacing={1}>
-                      <Button size="small" variant="outlined" onClick={() => setEditDepartment(dept)}>수정</Button>
-                      {dept.isActive === "Y" ? (
+                      {isAdmin ? (
+                        <Tooltip title="관리">
+                          <IconButton
+                            size="small"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setEditDepartment(dept);
+                            }}
+                          >
+                            <ManageAccountsRoundedIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      ) : null}
+                      {isAdmin && departmentListTab === "ACTIVE" ? (
                         <Button
                           size="small"
                           color="error"
                           variant="outlined"
                           disabled={(departmentStaffCountMap.get(dept.id) ?? dept.staffCount ?? 0) > 0}
-                          onClick={() => handleDeactivateDepartment(dept.id)}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleDeactivateDepartment(dept.id);
+                          }}
                         >
                           비활성
                         </Button>
+                      ) : isAdmin ? (
+                        <>
+                          <Tooltip title="삭제">
+                            <IconButton size="small" color="error" onClick={() => handleDeleteDepartment(dept.id)}>
+                              <DeleteOutlineRoundedIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </>
                       ) : null}
                     </Stack>
                   </Stack>
                 ))}
+                {(departmentListTab === "ACTIVE" ? activeDepartments : inactiveDepartments).length === 0 ? (
+                  <Typography sx={{ color: "var(--muted)", py: 2, textAlign: "center" }}>
+                    {departmentListTab === "ACTIVE" ? "활성 부서가 없습니다." : "비활성 부서가 없습니다."}
+                  </Typography>
+                ) : null}
               </Stack>
             </CardContent>
           </Card>
         ) : null}
 
-        {viewTab === "POSITION" && isAdmin ? (
+        {viewTab === "POSITION" ? (
           <Card sx={{ borderRadius: 3, border: "1px solid var(--line)" }}>
             <CardContent sx={{ p: 2 }}>
               <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.25 }}>
                 <Typography fontWeight={800}>직책 마스터</Typography>
-                <Button size="small" variant="contained" onClick={() => setCreatePositionOpen(true)}>
-                  직책 등록
-                </Button>
+                {isAdmin ? (
+                  <Button size="small" variant="contained" onClick={() => setCreatePositionOpen(true)}>
+                    직책 등록
+                  </Button>
+                ) : null}
               </Stack>
               <TextField
                 size="small"
@@ -1132,9 +1334,29 @@ export default function StaffPage() {
                 onChange={(e) => setPositionKeyword(e.target.value)}
                 sx={{ mb: 1.5, maxWidth: 360 }}
               />
+              <Tabs
+                value={positionListTab}
+                onChange={(_, v) => setPositionListTab(v === "INACTIVE" ? "INACTIVE" : "ACTIVE")}
+                sx={{ mb: 1 }}
+              >
+                <Tab value="ACTIVE" label={`활성 직책(${activePositions.length})`} />
+                <Tab value="INACTIVE" label={`비활성 직책(${inactivePositions.length})`} />
+              </Tabs>
               <Stack spacing={1}>
-                {visiblePositions.map((position) => (
-                  <Stack key={position.id} direction="row" justifyContent="space-between" alignItems="center" sx={{ p: 1.25, border: "1px solid var(--line)", borderRadius: 2 }}>
+                {(positionListTab === "ACTIVE" ? activePositions : inactivePositions).map((position) => (
+                  <Stack
+                    key={position.id}
+                    direction="row"
+                    justifyContent="space-between"
+                    alignItems="center"
+                    onClick={isAdmin && positionListTab === "ACTIVE" ? () => setEditPosition(position) : undefined}
+                    sx={{
+                      p: 1.25,
+                      border: "1px solid var(--line)",
+                      borderRadius: 2,
+                      cursor: isAdmin && positionListTab === "ACTIVE" ? "pointer" : "default",
+                    }}
+                  >
                     <Box>
                       <Stack direction="row" spacing={0.75} alignItems="center">
                         <Typography fontWeight={700}>{position.title}</Typography>
@@ -1145,27 +1367,55 @@ export default function StaffPage() {
                       </Typography>
                     </Box>
                     <Stack direction="row" spacing={1}>
-                      <Button size="small" variant="outlined" onClick={() => setEditPosition(position)}>수정</Button>
-                      {position.isActive === "Y" ? (
+                      {isAdmin ? (
+                        <Tooltip title="관리">
+                          <IconButton
+                            size="small"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setEditPosition(position);
+                            }}
+                          >
+                            <ManageAccountsRoundedIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      ) : null}
+                      {isAdmin && positionListTab === "ACTIVE" ? (
                         <Button
                           size="small"
                           color="error"
                           variant="outlined"
                           disabled={(positionStaffCountMap.get(position.id) ?? 0) > 0}
-                          onClick={() => handleDeactivatePosition(position.id)}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleDeactivatePosition(position.id);
+                          }}
                         >
                           비활성
                         </Button>
+                      ) : isAdmin ? (
+                        <>
+                          <Tooltip title="삭제">
+                            <IconButton size="small" color="error" onClick={() => handleDeletePosition(position.id)}>
+                              <DeleteOutlineRoundedIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </>
                       ) : null}
                     </Stack>
                   </Stack>
                 ))}
+                {(positionListTab === "ACTIVE" ? activePositions : inactivePositions).length === 0 ? (
+                  <Typography sx={{ color: "var(--muted)", py: 2, textAlign: "center" }}>
+                    {positionListTab === "ACTIVE" ? "활성 직책이 없습니다." : "비활성 직책이 없습니다."}
+                  </Typography>
+                ) : null}
               </Stack>
             </CardContent>
           </Card>
         ) : null}
 
-        {viewTab === "APPROVAL" && isAdmin ? (
+        {!isSettingsPage && viewTab === "APPROVAL" && isAdmin ? (
           <Card sx={{ borderRadius: 3, border: "1px solid var(--line)", minHeight: 420 }}>
             <CardContent sx={{ p: 2 }}>
               <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }}>

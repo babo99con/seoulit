@@ -1,0 +1,311 @@
+Project his_workspace {
+  database_type: "Oracle"
+  Note: "HIS Workspace 통합 요약(2026-02-21 기준)"
+}
+
+Enum STAFF_DOMAIN_ROLE {
+  ADMIN
+  STAFF
+  DOCTOR
+  NURSE
+  RECEPTION
+}
+
+Table DEPARTMENTS {
+  ID number [pk]
+  NAME varchar(100) [not null]
+  DESCRIPTION varchar(255)
+  LOCATION varchar(100)
+  HEAD_STAFF_ID number
+  DEPT_CODE varchar(30)
+  IS_ACTIVE char(1) [not null, note: "Y/N"]
+  SORT_ORDER number [not null]
+  BUILDING_NO varchar(50)
+  FLOOR_NO varchar(10)
+  ROOM_NO varchar(20)
+  EXTENSION varchar(20)
+  CREATED_AT date [not null]
+  UPDATED_AT date
+}
+
+Table POSITIONS {
+  ID number [pk]
+  DOMAIN varchar(50) [note: "직군 분류(예: DOCTOR/NURSE/STAFF/RECEPTION)"]
+  TITLE varchar(100)
+  DESCRIPTION varchar(255)
+  POSITION_CODE varchar(30)
+  IS_ACTIVE char(1) [not null, note: "Y/N"]
+  SORT_ORDER number [not null]
+  CREATED_AT date [not null]
+  UPDATED_AT date
+}
+
+Table STAFF_STATUS_CODES {
+  CODE varchar(20) [pk]
+  LABEL varchar(50) [not null]
+  SORT_ORDER number [not null]
+  IS_ACTIVE char(1) [not null, note: "Y/N"]
+  CREATED_AT date [not null]
+  UPDATED_AT date
+}
+
+Table STAFF {
+  ID number [pk]
+  USERNAME varchar(50) [not null]
+  PASSWORD_HASH varchar(64)
+  STATUS varchar(20)
+  STATUS_CODE varchar(20)
+  DOMAIN_ROLE varchar(50) [note: "역할 개념 컬럼(예: DOCTOR/NURSE). 앱 권한/라우팅에 사용"]
+  FULL_NAME varchar(100)
+  OFFICE_LOCATION varchar(255)
+  PHOTO_KEY varchar(255)
+  BIO clob
+  PHONE varchar(20)
+  DEPT_ID number
+  POSITION_ID number
+  CREATED_AT date [not null]
+  UPDATED_AT date
+}
+
+Table STAFF_CREDENTIAL {
+  ID number [pk]
+  STAFF_ID number [not null]
+  CRED_TYPE varchar(10) [not null, note: "LICENSE/CERT"]
+  NAME varchar(100) [not null]
+  CRED_NUMBER varchar(50)
+  ISSUER varchar(100)
+  ISSUED_AT date
+  EXPIRES_AT date
+  STATUS varchar(20) [not null, note: "ACTIVE/EXPIRED/REVOKED"]
+  EVIDENCE_KEY varchar(255)
+  CREATED_AT date
+  UPDATED_AT date
+}
+
+Table STAFF_HISTORY {
+  ID number [pk]
+  STAFF_ID number [not null]
+  EVENT_TYPE varchar(30)
+  FIELD_NAME varchar(50)
+  OLD_VALUE varchar(1000)
+  NEW_VALUE varchar(1000)
+  REASON varchar(500)
+  CHANGED_BY varchar(50)
+  CHANGED_AT date [not null]
+}
+
+Table STAFF_CHANGE_REQUEST {
+  ID number [pk]
+  STAFF_ID number [not null]
+  REQUEST_TYPE varchar(30) [not null]
+  REQUEST_PAYLOAD clob
+  REASON varchar(500)
+  STATUS varchar(20) [not null]
+  REQUESTED_BY varchar(50) [not null]
+  REQUESTED_AT date [not null]
+  REVIEWED_BY varchar(50)
+  REVIEWED_AT date
+  REVIEW_COMMENT varchar(500)
+}
+
+Table STAFF_AUDIT_LOG {
+  ID number [pk]
+  ACTION_TYPE varchar(50) [not null]
+  TARGET_TYPE varchar(50)
+  TARGET_ID varchar(50)
+  ACTOR varchar(50)
+  ACTOR_ROLE varchar(50)
+  REASON varchar(500)
+  OLD_VALUE varchar(2000)
+  NEW_VALUE varchar(2000)
+  IP_ADDRESS varchar(64)
+  USER_AGENT varchar(500)
+  CREATED_AT date [not null]
+}
+
+Table STAFF_BOARD_POST {
+  ID number [pk]
+  CATEGORY varchar(20) [not null, note: "NOTICE/SCHEDULE/EVENT"]
+  POST_TYPE varchar(20) [not null]
+  TITLE varchar(200) [not null]
+  CONTENT varchar(4000)
+  EVENT_DATE varchar(20)
+  LOCATION varchar(200)
+  SUBJECT_NAME varchar(100)
+  DEPARTMENT_NAME varchar(100)
+  AUTHOR_ID varchar(100) [not null]
+  AUTHOR_NAME varchar(100) [not null]
+  DELETE_PIN varchar(4) [not null]
+  IS_DELETED char(1) [note: "Y/N"]
+  CREATED_AT date [not null]
+  UPDATED_AT date
+}
+
+Table VISIT_REG {
+  ID number [pk]
+  VISIT_NO varchar(30)
+  PATIENT_ID number [not null]
+  PATIENT_NO varchar(30)
+  PATIENT_NAME varchar(100)
+  PATIENT_PHONE varchar(20)
+  VISIT_TYPE varchar(30) [not null]
+  STATUS varchar(30) [not null]
+  DEPT_CODE varchar(50) [not null]
+  DOCTOR_ID varchar(50)
+  PRIORITY_YN number
+  QUEUE_NO number
+  CALLED_AT date
+  STARTED_AT date
+  FINISHED_AT date
+  MEMO varchar(1000)
+  CANCELLED_AT date
+  CANCEL_REASON_CODE varchar(50)
+  CANCEL_MEMO varchar(1000)
+  CREATED_BY varchar(50)
+  UPDATED_BY varchar(50)
+  CREATED_AT date [not null]
+  UPDATED_AT date
+}
+
+Table VISIT_HISTORY {
+  ID number [pk]
+  VISIT_ID number [not null]
+  EVENT_TYPE varchar(30)
+  FIELD_NAME varchar(50)
+  OLD_VALUE varchar(1000)
+  NEW_VALUE varchar(1000)
+  REASON varchar(500)
+  CHANGED_BY varchar(50)
+  CHANGED_AT date [not null]
+}
+
+Table VISIT_RESERVATION {
+  VISIT_ID number [pk]
+  RESERVATION_ID varchar(50)
+  SCHEDULED_AT date
+  ARRIVAL_AT date
+  NOTE varchar(1000)
+  UPDATED_AT date
+}
+
+Table VISIT_EMERGENCY {
+  VISIT_ID number [pk]
+  TRIAGE_LEVEL varchar(20)
+  AMBULANCE_YN number
+  TRAUMA_YN number
+  NOTE varchar(1000)
+  UPDATED_AT date
+}
+
+Table VISIT_INPATIENT {
+  VISIT_ID number [pk]
+  WARD_CODE varchar(30)
+  ROOM_NO varchar(30)
+  BED_NO varchar(30)
+  ADMISSION_AT date
+  NOTE varchar(1000)
+  UPDATED_AT date
+}
+
+Table MEDICAL_ENCOUNTER {
+  ID number [pk]
+  VISIT_ID number [not null]
+  PATIENT_ID number [not null]
+  PATIENT_NO varchar(30)
+  PATIENT_NAME varchar(100)
+  DOCTOR_ID varchar(50)
+  DEPT_CODE varchar(50)
+  STATUS varchar(30) [not null]
+  CHIEF_COMPLAINT varchar(2000)
+  ASSESSMENT varchar(2000)
+  PLAN_NOTE varchar(2000)
+  DIAGNOSIS_CODE varchar(100)
+  MEMO varchar(2000)
+  IS_ACTIVE char(1) [not null, note: "Y/N"]
+  INACTIVE_REASON_CODE varchar(50)
+  INACTIVE_REASON_MEMO varchar(1000)
+  INACTIVATED_AT date
+  CREATED_BY varchar(50)
+  UPDATED_BY varchar(50)
+  CREATED_AT date [not null]
+  UPDATED_AT date
+}
+
+Table MEDICAL_ENCOUNTER_HISTORY {
+  ID number [pk]
+  ENCOUNTER_ID number [not null]
+  EVENT_TYPE varchar(30)
+  FIELD_NAME varchar(50)
+  OLD_VALUE varchar(2000)
+  NEW_VALUE varchar(2000)
+  REASON varchar(500)
+  CHANGED_BY varchar(50)
+  CHANGED_AT date [not null]
+}
+
+Table MEDICAL_ENCOUNTER_DIAGNOSIS {
+  ID number [pk]
+  ENCOUNTER_ID number [not null]
+  DIAGNOSIS_CODE varchar(100) [not null]
+  DIAGNOSIS_NAME varchar(300)
+  IS_PRIMARY char(1) [not null, note: "Y/N"]
+  SORT_ORDER number [not null]
+  CREATED_BY varchar(50)
+  CREATED_AT date [not null]
+}
+
+Table MEDICAL_ENCOUNTER_ASSET {
+  ID number [pk]
+  ENCOUNTER_ID number [not null]
+  PATIENT_ID number [not null]
+  ASSET_TYPE varchar(20) [not null, note: "PEN/IMAGE"]
+  TEMPLATE_CODE varchar(50)
+  OBJECT_KEY varchar(500) [not null]
+  CREATED_BY varchar(50)
+  CREATED_AT date [not null]
+}
+
+Table MENU {
+  ID number [pk]
+  PARENT_ID number
+  CODE varchar(50) [not null]
+  NAME varchar(100) [not null]
+  PATH varchar(200)
+  ICON varchar(50)
+  SORT_ORDER number [not null]
+  IS_ACTIVE number [not null]
+  CREATED_AT timestamp [not null]
+  UPDATED_AT timestamp [not null]
+}
+
+Table PATIENT {
+  PATIENT_ID number [pk, note: "init SQL 외부 관리 테이블(참조용)"]
+}
+
+Ref: STAFF.DEPT_ID > DEPARTMENTS.ID
+Ref: STAFF.POSITION_ID > POSITIONS.ID
+Ref: STAFF.STATUS_CODE > STAFF_STATUS_CODES.CODE
+
+Ref: STAFF_CREDENTIAL.STAFF_ID > STAFF.ID
+Ref: STAFF_HISTORY.STAFF_ID > STAFF.ID
+Ref: STAFF_CHANGE_REQUEST.STAFF_ID > STAFF.ID
+
+Ref: VISIT_HISTORY.VISIT_ID > VISIT_REG.ID
+Ref: VISIT_RESERVATION.VISIT_ID > VISIT_REG.ID
+Ref: VISIT_EMERGENCY.VISIT_ID > VISIT_REG.ID
+Ref: VISIT_INPATIENT.VISIT_ID > VISIT_REG.ID
+
+Ref: MEDICAL_ENCOUNTER.VISIT_ID > VISIT_REG.ID
+Ref: MEDICAL_ENCOUNTER_HISTORY.ENCOUNTER_ID > MEDICAL_ENCOUNTER.ID
+Ref: MEDICAL_ENCOUNTER_DIAGNOSIS.ENCOUNTER_ID > MEDICAL_ENCOUNTER.ID
+Ref: MEDICAL_ENCOUNTER_ASSET.ENCOUNTER_ID > MEDICAL_ENCOUNTER.ID
+Ref: MEDICAL_ENCOUNTER_ASSET.PATIENT_ID > PATIENT.PATIENT_ID
+
+Ref: MENU.PARENT_ID > MENU.ID
+
+Note: '''
+[DOCTOR/NURSE 개념 표시]
+- 물리 테이블이 STAFF에서 별도 분리된 구조가 아니라 STAFF 단일 테이블 + 역할 컬럼으로 관리됨
+- 역할 판별은 STAFF.DOMAIN_ROLE 및 POSITIONS.DOMAIN 조합으로 해석
+- 즉, DOCTOR/NURSE 전용 테이블이 없는 것이 현재 설계 의도임
+'''

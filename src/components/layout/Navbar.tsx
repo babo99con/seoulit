@@ -19,6 +19,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { clearSession, getSessionUser, type SessionUser } from "@/lib/session";
 import { loginApi, logoutApi } from "@/lib/authApi";
+import { fetchMyStaffProfileApi } from "@/lib/staffApi";
+import { deriveOperationalRole } from "@/lib/roleAccess";
 import { saveSession } from "@/lib/session";
 
 const DEV_ROLE_ACCOUNTS = [
@@ -73,15 +75,24 @@ export default function Navbar() {
     try {
       setSwitchingRole(username);
       const result = await loginApi({ username, password });
-      saveSession(result.accessToken, result.user, {
+      let resolvedRole = result.user.role;
+      if (deriveOperationalRole(result.user.role) === "STAFF") {
+        try {
+          const profile = await fetchMyStaffProfileApi();
+          resolvedRole = deriveOperationalRole(result.user.role, profile.domainRole, profile.positionName, profile.departmentName);
+        } catch {
+          // ignore and fallback to auth role
+        }
+      }
+      saveSession(result.accessToken, { ...result.user, role: resolvedRole }, {
         passwordChangeRequired: result.passwordChangeRequired,
       });
-      setSessionUser(result.user);
+      setSessionUser({ ...result.user, role: resolvedRole });
       setSwitchAnchor(null);
       if (result.passwordChangeRequired) {
         router.push("/my_account?forcePasswordChange=1");
       } else {
-        router.push(roleHomePath(result.user.role));
+        router.push(roleHomePath(resolvedRole));
       }
       router.refresh();
     } catch {

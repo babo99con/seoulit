@@ -33,6 +33,85 @@ WHEN NOT MATCHED THEN
 
 COMMIT;
 
+MERGE INTO CMH.STAFF_COMMON_DOC t
+USING (
+    SELECT 1201 AS id, '규정' AS category, '환자 개인정보 처리 지침' AS title,
+           '외부 반출 금지, 접근 권한 최소화 원칙을 준수합니다.' AS content,
+           'v2.1' AS version_label,
+           '총무팀' AS owner_name,
+           NULL AS sender_dept_id,
+           '공통' AS sender_dept_name,
+           NULL AS receiver_dept_id,
+           '전체' AS receiver_dept_name,
+           'admin' AS approver_id,
+           '시스템 관리자' AS approver_name,
+           'APPROVED' AS approval_status,
+           NULL AS rejection_reason,
+           'admin' AS author_id,
+           '시스템 관리자' AS author_name,
+           'N' AS is_deleted
+      FROM dual
+    UNION ALL
+    SELECT 1202, '매뉴얼', '응급실 초진 프로토콜',
+           '중증도 분류 후 5분 내 의사 호출, 표준 기록 양식을 사용합니다.',
+           'v1.4',
+           '응급의학과',
+           NULL,
+           '응급의학과',
+           NULL,
+           '응급의학과',
+           'admin',
+           '시스템 관리자',
+           'PENDING',
+           NULL,
+           'admin',
+           '시스템 관리자',
+           'N'
+      FROM dual
+    UNION ALL
+    SELECT 1203, '양식', '진료기록 정정 요청서',
+           '정정 사유, 정정 전/후 내용을 기재하여 제출합니다.',
+           'v1.0',
+           '원무팀',
+           NULL,
+           '원무팀',
+           NULL,
+           '원무팀',
+           'admin',
+           '시스템 관리자',
+           'REJECTED',
+           '양식 항목 누락',
+           'admin',
+           '시스템 관리자',
+           'N'
+      FROM dual
+) s
+ON (t.ID = s.id)
+WHEN MATCHED THEN
+  UPDATE SET
+    t.CATEGORY = s.category,
+    t.TITLE = s.title,
+    t.CONTENT = s.content,
+    t.VERSION_LABEL = s.version_label,
+    t.OWNER_NAME = s.owner_name,
+    t.SENDER_DEPT_ID = s.sender_dept_id,
+    t.SENDER_DEPT_NAME = s.sender_dept_name,
+    t.RECEIVER_DEPT_ID = s.receiver_dept_id,
+    t.RECEIVER_DEPT_NAME = s.receiver_dept_name,
+    t.APPROVER_ID = s.approver_id,
+    t.APPROVER_NAME = s.approver_name,
+    t.APPROVAL_STATUS = s.approval_status,
+    t.REJECTION_REASON = s.rejection_reason,
+    t.AUTHOR_ID = s.author_id,
+    t.AUTHOR_NAME = s.author_name,
+    t.IS_DELETED = s.is_deleted,
+    t.UPDATED_AT = SYSDATE
+WHEN NOT MATCHED THEN
+  INSERT (ID, CATEGORY, TITLE, CONTENT, VERSION_LABEL, OWNER_NAME, SENDER_DEPT_ID, SENDER_DEPT_NAME, RECEIVER_DEPT_ID, RECEIVER_DEPT_NAME, APPROVER_ID, APPROVER_NAME, APPROVAL_STATUS, REJECTION_REASON, AUTHOR_ID, AUTHOR_NAME, IS_DELETED, CREATED_AT, UPDATED_AT)
+  VALUES (s.id, s.category, s.title, s.content, s.version_label, s.owner_name, s.sender_dept_id, s.sender_dept_name, s.receiver_dept_id, s.receiver_dept_name, s.approver_id, s.approver_name, s.approval_status, s.rejection_reason, s.author_id, s.author_name, s.is_deleted, SYSDATE, SYSDATE);
+
+COMMIT;
+
 MERGE INTO CMH.STAFF_BOARD_POST t
 USING (
     SELECT 1001 AS id, 'NOTICE' AS category, '필독' AS post_type,
@@ -62,17 +141,36 @@ USING (
       FROM dual
     UNION ALL
     SELECT 1003, 'EVENT', '공지',
-           '박OO · 결혼',
-           'TYPE:결혼',
+           '[경사] 박OO 결혼',
+           'TYPE:경사\n\n예식장: 전주 더메이웨딩 3층\n일시: 2026-03-12 13:00',
            '2026-03-12',
            NULL,
-           '박OO',
+           '박OO 결혼',
            '원무팀',
            'admin',
            '시스템 관리자',
            '1234',
            'N'
       FROM dual
+    UNION ALL SELECT 1004, 'EVENT', '일반', '[부고] 전북대학교 통계학과 김광수 교수 부친상', 'TYPE:조사\n\n빈소: 전북대병원 장례식장 2호실\n발인: 2026-03-13', '2026-03-11', NULL, '전북대학교 통계학과 김광수 교수 부친상', '행정팀', 'admin', '시스템 관리자', '1234', 'N' FROM dual
+    UNION ALL SELECT 1005, 'EVENT', '일반', '[경사] 이OO 결혼', 'TYPE:경사\n\n예식장: 라한호텔 1층\n일시: 2026-03-15 12:30', '2026-03-15', NULL, '이OO 결혼', '간호부', 'admin', '시스템 관리자', '1234', 'N' FROM dual
+    UNION ALL SELECT 1006, 'EVENT', '공지', '[경사] 최OO 자녀 돌잔치', 'TYPE:경사\n\n장소: 더컨벤션 2층\n일시: 2026-03-16 18:00', '2026-03-16', NULL, '최OO 자녀 돌잔치', '진료지원팀', 'admin', '시스템 관리자', '1234', 'N' FROM dual
+    UNION ALL SELECT 1007, 'EVENT', '일반', '[부고] 김OO 모친상', 'TYPE:조사\n\n빈소: 전주예수병원 장례식장 5호실\n발인: 2026-03-17', '2026-03-15', NULL, '김OO 모친상', '원무팀', 'admin', '시스템 관리자', '1234', 'N' FROM dual
+    UNION ALL SELECT 1008, 'EVENT', '일반', '[경사] 정OO 결혼', 'TYPE:경사\n\n예식장: 그랜드힐스 4층\n일시: 2026-03-20 11:00', '2026-03-20', NULL, '정OO 결혼', '영상의학과', 'admin', '시스템 관리자', '1234', 'N' FROM dual
+    UNION ALL SELECT 1009, 'EVENT', '일반', '[경사] 박OO 결혼', 'TYPE:경사\n\n예식장: 더채플 6층\n일시: 2026-03-21 14:00', '2026-03-21', NULL, '박OO 결혼', '원무팀', 'admin', '시스템 관리자', '1234', 'N' FROM dual
+    UNION ALL SELECT 1010, 'EVENT', '공지', '[부고] 송OO 부친상', 'TYPE:조사\n\n빈소: 남원의료원 장례식장 특실\n발인: 2026-03-22', '2026-03-20', NULL, '송OO 부친상', '시설관리팀', 'admin', '시스템 관리자', '1234', 'N' FROM dual
+    UNION ALL SELECT 1011, 'EVENT', '일반', '[경사] 장OO 결혼', 'TYPE:경사\n\n예식장: 더메종 2층\n일시: 2026-03-23 13:00', '2026-03-23', NULL, '장OO 결혼', '검사실', 'admin', '시스템 관리자', '1234', 'N' FROM dual
+    UNION ALL SELECT 1012, 'EVENT', '일반', '[부고] 조OO 모친상', 'TYPE:조사\n\n빈소: 군산의료원 장례식장 3호실\n발인: 2026-03-24', '2026-03-22', NULL, '조OO 모친상', '간호부', 'admin', '시스템 관리자', '1234', 'N' FROM dual
+    UNION ALL SELECT 1013, 'EVENT', '일반', '[경사] 윤OO 결혼', 'TYPE:경사\n\n예식장: 노블레스웨딩 5층\n일시: 2026-03-26 12:00', '2026-03-26', NULL, '윤OO 결혼', '약제팀', 'admin', '시스템 관리자', '1234', 'N' FROM dual
+    UNION ALL SELECT 1014, 'EVENT', '공지', '[경사] 임OO 자녀 돌잔치', 'TYPE:경사\n\n장소: 더파티 3층\n일시: 2026-03-27 17:30', '2026-03-27', NULL, '임OO 자녀 돌잔치', '원무팀', 'admin', '시스템 관리자', '1234', 'N' FROM dual
+    UNION ALL SELECT 1015, 'EVENT', '일반', '[부고] 한OO 부친상', 'TYPE:조사\n\n빈소: 익산병원 장례식장 1호실\n발인: 2026-03-28', '2026-03-26', NULL, '한OO 부친상', '행정팀', 'admin', '시스템 관리자', '1234', 'N' FROM dual
+    UNION ALL SELECT 1016, 'EVENT', '일반', '[경사] 오OO 결혼', 'TYPE:경사\n\n예식장: 아르떼웨딩 2층\n일시: 2026-03-29 11:30', '2026-03-29', NULL, '오OO 결혼', '재활치료실', 'admin', '시스템 관리자', '1234', 'N' FROM dual
+    UNION ALL SELECT 1017, 'EVENT', '일반', '[경사] 배OO 결혼', 'TYPE:경사\n\n예식장: 벨라루체 7층\n일시: 2026-03-30 14:30', '2026-03-30', NULL, '배OO 결혼', '원무팀', 'admin', '시스템 관리자', '1234', 'N' FROM dual
+    UNION ALL SELECT 1018, 'EVENT', '공지', '[부고] 문OO 모친상', 'TYPE:조사\n\n빈소: 전주효자장례식장 6호실\n발인: 2026-03-31', '2026-03-29', NULL, '문OO 모친상', '간호부', 'admin', '시스템 관리자', '1234', 'N' FROM dual
+    UNION ALL SELECT 1019, 'EVENT', '일반', '[경사] 고OO 결혼', 'TYPE:경사\n\n예식장: 더시티웨딩 4층\n일시: 2026-04-01 13:30', '2026-04-01', NULL, '고OO 결혼', '영상의학과', 'admin', '시스템 관리자', '1234', 'N' FROM dual
+    UNION ALL SELECT 1020, 'EVENT', '일반', '[부고] 백OO 부친상', 'TYPE:조사\n\n빈소: 정읍아산병원 장례식장 2호실\n발인: 2026-04-02', '2026-03-31', NULL, '백OO 부친상', '원무팀', 'admin', '시스템 관리자', '1234', 'N' FROM dual
+    UNION ALL SELECT 1021, 'EVENT', '일반', '[경사] 신OO 결혼', 'TYPE:경사\n\n예식장: 웨딩스퀘어 1층\n일시: 2026-04-03 12:00', '2026-04-03', NULL, '신OO 결혼', '검사실', 'admin', '시스템 관리자', '1234', 'N' FROM dual
+    UNION ALL SELECT 1022, 'EVENT', '공지', '[경사] 황OO 자녀 돌잔치', 'TYPE:경사\n\n장소: 한옥마을 컨벤션\n일시: 2026-04-04 18:00', '2026-04-04', NULL, '황OO 자녀 돌잔치', '행정팀', 'admin', '시스템 관리자', '1234', 'N' FROM dual
 ) s
 ON (t.ID = s.id)
 WHEN MATCHED THEN
@@ -304,7 +402,7 @@ ON (t.ID = s.id)
 WHEN MATCHED THEN
   UPDATE SET
     t.USERNAME = s.username,
-    t.PASSWORD_HASH = s.password_hash,
+    t.PASSWORD_HASH = CASE WHEN t.ID = 1 THEN t.PASSWORD_HASH ELSE s.password_hash END,
     t.STATUS = 'ACTIVE',
     t.STATUS_CODE = 'ACTIVE',
     t.DOMAIN_ROLE = s.domain_role,

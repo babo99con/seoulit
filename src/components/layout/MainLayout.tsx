@@ -5,9 +5,21 @@ import { Box, IconButton } from "@mui/material";
 import Navbar from "./Navbar";
 import Sidebar from "./Sidebar";
 import { usePathname } from "next/navigation";
-import { getAccessToken, getSessionUser } from "@/lib/session";
+import {
+  clearSession,
+  getAccessToken,
+  getSessionUser,
+  isPasswordChangeRequired,
+  saveSessionUserOnly,
+} from "@/lib/session";
 import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
-import { canAccessPath, getDefaultPathByRole } from "@/lib/roleAccess";
+import {
+  canAccessPath,
+  deriveOperationalRole,
+  getDefaultPathByRole,
+} from "@/lib/roleAccess";
+import { getMeApi } from "@/lib/authApi";
+import { fetchMyStaffProfileApi } from "@/lib/staffApi";
 
 export default function MainLayout({
   children,
@@ -22,29 +34,119 @@ export default function MainLayout({
   const [authChecked, setAuthChecked] = React.useState(false);
   const [sidebarOpen, setSidebarOpen] = React.useState(true);
 
+  const resolveOperationalRole = React.useCallback(
+    async (
+      authRole: string,
+      profile: {
+        domainRole?: string | null;
+        positionName?: string | null;
+        departmentName?: string | null;
+        positionId?: number | null;
+        deptId?: number | null;
+      }
+    ) => {
+      let resolved = deriveOperationalRole(
+        authRole,
+        profile.domainRole,
+        profile.positionName,
+        profile.departmentName
+      );
+      if (resolved !== "STAFF") return resolved;
+
+      if (!profile.positionName && !profile.departmentName && (profile.positionId || profile.deptId)) {
+        const [positions, departments] = await Promise.all([
+          import("@/lib/staffApi").then((m) => m.fetchPositionsApi(false)).catch(() => []),
+          import("@/lib/staffApi").then((m) => m.fetchDepartmentsApi(false)).catch(() => []),
+        ]);
+        const positionName = profile.positionId
+          ? positions.find((p) => p.id === profile.positionId)?.title
+          : undefined;
+        const departmentName = profile.deptId
+          ? departments.find((d) => d.id === profile.deptId)?.name
+          : undefined;
+        resolved = deriveOperationalRole(authRole, profile.domainRole, positionName, departmentName);
+      }
+
+      return resolved;
+    },
+    []
+  );
+
   React.useEffect(() => {
-    const token = getAccessToken();
-    if (!token && pathname !== "/login") {
-      const next = encodeURIComponent(pathname || "/reception");
-      window.location.replace(`/login?next=${next}`);
-      return;
-    }
+    let mounted = true;
 
-    const user = getSessionUser();
-    if (!user && pathname !== "/login") {
-      const next = encodeURIComponent(pathname || "/reception");
-      window.location.replace(`/login?next=${next}`);
-      return;
-    }
+    const ensureSession = async () => {
+      const token = getAccessToken();
+      if (!token && pathname !== "/login") {
+        const next = encodeURIComponent(pathname || "/");
+        window.location.replace(`/login?next=${next}`);
+        return;
+      }
 
-    if (user && !canAccessPath(user.role, pathname || "/")) {
-      window.alert("권한이 없습니다.");
-      window.location.replace(getDefaultPathByRole(user.role));
-      return;
-    }
+      let user = getSessionUser();
+      if (user && deriveOperationalRole(user.role) === "STAFF" && token) {
+        try {
+          const profile = await fetchMyStaffProfileApi();
+          const resolvedRole = await resolveOperationalRole(user.role, profile);
+          if (resolvedRole !== user.role) {
+            const nextUser = { ...user, role: resolvedRole };
+            saveSessionUserOnly(nextUser, {
+              passwordChangeRequired: isPasswordChangeRequired(),
+            });
+            user = nextUser;
+          }
+        } catch {
+          // ignore and keep existing session role
+        }
+      }
 
-    setAuthChecked(true);
-  }, [pathname]);
+      if (!user && token) {
+        try {
+          const me = await getMeApi();
+          let resolvedRole = me.role;
+          if (deriveOperationalRole(me.role) === "STAFF") {
+            try {
+              const profile = await fetchMyStaffProfileApi();
+              resolvedRole = await resolveOperationalRole(me.role, profile);
+            } catch {
+              // ignore and fallback to auth role
+            }
+          }
+          const nextUser = { ...me, role: resolvedRole };
+          saveSessionUserOnly(nextUser, { passwordChangeRequired: isPasswordChangeRequired() });
+          user = nextUser;
+        } catch {
+          clearSession();
+          const next = encodeURIComponent(pathname || "/");
+          window.location.replace(`/login?next=${next}`);
+          return;
+        }
+      }
+
+      if (!user && pathname !== "/login") {
+        const next = encodeURIComponent(pathname || "/");
+        window.location.replace(`/login?next=${next}`);
+        return;
+      }
+
+      if (user && !canAccessPath(user.role, pathname || "/")) {
+        window.alert("권한이 없습니다.");
+        window.location.replace(getDefaultPathByRole(user.role));
+        return;
+      }
+
+      if (mounted) {
+        setAuthChecked(true);
+      }
+    };
+
+    setAuthChecked(false);
+    void ensureSession();
+
+    return () => {
+      mounted = false;
+    };
+  }, [pathname, resolveOperationalRole]);
 
   if (!authChecked) {
     return null;

@@ -7,17 +7,21 @@ import {
   Button,
   Card,
   CardContent,
+  Checkbox,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
-  MenuItem,
+  FormControlLabel,
   Pagination,
   Stack,
+  Tab,
+  Tabs,
   TextField,
   Typography,
 } from "@mui/material";
 import { getSessionUser } from "@/lib/session";
+import { fetchMyStaffProfileApi } from "@/lib/staffApi";
 import {
   createStaffBoardPostApi,
   deleteStaffBoardPostApi,
@@ -28,12 +32,30 @@ import {
 } from "@/lib/staffBoardApi";
 
 const PAGE_SIZE = 10;
+const EVENT_TYPES = ["경사", "조사"] as const;
 
 const parseEventType = (item: StaffBoardPost) => {
   if (!item.content) return "";
-  if (item.content.startsWith("TYPE:")) return item.content.slice(5).trim();
+  if (item.content.startsWith("TYPE:")) {
+    const firstLine = item.content.split("\n")[0] || "";
+    return firstLine.slice(5).trim();
+  }
   return item.content;
 };
+
+const parseEventDetail = (item: StaffBoardPost) => {
+  if (!item.content) return "";
+  if (!item.content.startsWith("TYPE:")) return item.content;
+  const lines = item.content.split("\n");
+  return lines.slice(1).join("\n").trim();
+};
+
+const parseEventTitleBody = (item: StaffBoardPost) => {
+  const raw = (item.title || "").trim();
+  return raw.replace(/^\[[^\]]+\]\s*/, "");
+};
+
+const toTypeLabel = (type: string) => (type === "조사" ? "부고" : "경사");
 
 export default function StaffEventsPage() {
   const currentUser = React.useMemo(() => getSessionUser(), []);
@@ -49,29 +71,72 @@ export default function StaffEventsPage() {
   const [deletePinInput, setDeletePinInput] = React.useState("");
   const [loading, setLoading] = React.useState(false);
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
+  const [myDeptName, setMyDeptName] = React.useState("");
+  const [hideNotices, setHideNotices] = React.useState(false);
   const [form, setForm] = React.useState({
-    name: "",
-    type: "",
-    date: "",
-    dept: "",
-    tag: "공지",
-    author: "",
+    title: "",
+    type: "경사",
+    date: new Date().toISOString().slice(0, 10),
+    isNotice: false,
+    detail: "",
     deletePin: "",
   });
+
+  const visibleItems = React.useMemo(() => {
+    if (hideNotices) return items;
+    const notices = items.filter((item) => item.postType === "공지");
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const dateDiff = (value?: string | null) => {
+      if (!value) return Number.MAX_SAFE_INTEGER;
+      const d = new Date(value);
+      if (Number.isNaN(d.getTime())) return Number.MAX_SAFE_INTEGER;
+      d.setHours(0, 0, 0, 0);
+      return Math.floor((d.getTime() - today.getTime()) / 86400000);
+    };
+
+    const rankedNotices = [...notices].sort((a, b) => {
+      const da = dateDiff(a.eventDate);
+      const db = dateDiff(b.eventDate);
+      const aFuture = da >= 0;
+      const bFuture = db >= 0;
+      if (aFuture !== bFuture) return aFuture ? -1 : 1;
+      if (aFuture && bFuture) return da - db;
+      return db - da;
+    });
+
+    const visibleNoticeIds = new Set(rankedNotices.slice(0, 5).map((item) => item.id));
+    return items.filter((item) => item.postType !== "공지" || visibleNoticeIds.has(item.id));
+  }, [hideNotices, items]);
 
   const loadPage = React.useCallback(async (nextPage: number, nextKeyword: string) => {
     setLoading(true);
     setErrorMessage(null);
     try {
-      const result = await fetchStaffBoardPageApi({
-        category: "EVENT",
-        keyword: nextKeyword,
-        page: nextPage - 1,
-        size: PAGE_SIZE,
-      });
-      setItems(result.items || []);
-      setPage(result.page + 1);
-      setPageCount(Math.max(1, result.totalPages || 1));
+      if (hideNotices) {
+        const result = await fetchStaffBoardPageApi({
+          category: "EVENT",
+          keyword: nextKeyword,
+          page: 0,
+          size: 500,
+        });
+        const normalItems = (result.items || []).filter((item) => item.postType !== "공지");
+        const start = (nextPage - 1) * PAGE_SIZE;
+        setItems(normalItems.slice(start, start + PAGE_SIZE));
+        setPage(nextPage);
+        setPageCount(Math.max(1, Math.ceil(normalItems.length / PAGE_SIZE)));
+      } else {
+        const result = await fetchStaffBoardPageApi({
+          category: "EVENT",
+          keyword: nextKeyword,
+          page: nextPage - 1,
+          size: PAGE_SIZE,
+        });
+        setItems(result.items || []);
+        setPage(result.page + 1);
+        setPageCount(Math.max(1, result.totalPages || 1));
+      }
     } catch (error) {
       setItems([]);
       setPageCount(1);
@@ -79,11 +144,17 @@ export default function StaffEventsPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [hideNotices]);
 
   React.useEffect(() => {
-    void loadPage(1, "");
-  }, [loadPage]);
+    void loadPage(1, keyword);
+  }, [hideNotices, keyword, loadPage]);
+
+  React.useEffect(() => {
+    fetchMyStaffProfileApi()
+      .then((profile) => setMyDeptName(profile.departmentName || ""))
+      .catch(() => setMyDeptName(""));
+  }, []);
 
   const isOwner = React.useCallback(
     (item: StaffBoardPost) => {
@@ -97,12 +168,11 @@ export default function StaffEventsPage() {
   const openCreate = () => {
     setEditingId(null);
     setForm({
-      name: "",
-      type: "",
+      title: "",
+      type: "경사",
       date: new Date().toISOString().slice(0, 10),
-      dept: "",
-      tag: "공지",
-      author: currentUser?.fullName || currentUser?.username || "작성자",
+      isNotice: false,
+      detail: "",
       deletePin: "",
     });
     setOpen(true);
@@ -112,19 +182,22 @@ export default function StaffEventsPage() {
     if (!isOwner(item)) return;
     setEditingId(item.id);
     setForm({
-      name: item.subjectName || "",
-      type: parseEventType(item),
-      date: item.eventDate || "",
-      dept: item.departmentName || "",
-      tag: item.postType || "공지",
-      author: item.authorName,
+      title: parseEventTitleBody(item),
+      type: parseEventType(item) || "경사",
+      date: item.eventDate || new Date().toISOString().slice(0, 10),
+      isNotice: item.postType === "공지",
+      detail: parseEventDetail(item),
       deletePin: "",
     });
     setOpen(true);
   };
 
   const submit = async () => {
-    if (!form.name.trim() || !form.type.trim()) return;
+    if (!form.title.trim() || !form.type.trim()) return;
+    if (!form.date) {
+      window.alert("경조사 일자를 선택해 주세요.");
+      return;
+    }
     if (!editingId && !/^\d{4}$/.test(form.deletePin)) {
       window.alert("삭제 비밀번호는 4자리 숫자로 입력해 주세요.");
       return;
@@ -132,14 +205,14 @@ export default function StaffEventsPage() {
 
     try {
       const req = {
-        postType: form.tag,
-        title: `${form.name.trim()} · ${form.type.trim()}`,
-        content: `TYPE:${form.type.trim()}`,
+        postType: form.isNotice ? "공지" : "일반",
+        title: `[${toTypeLabel(form.type.trim())}] ${form.title.trim()}`,
+        content: `TYPE:${form.type.trim()}\n\n${form.detail.trim()}`,
         eventDate: form.date,
-        subjectName: form.name.trim(),
-        departmentName: form.dept.trim(),
+        subjectName: form.title.trim(),
+        departmentName: myDeptName,
         authorId: currentUser?.username || "",
-        authorName: form.author.trim() || currentUser?.fullName || currentUser?.username || "작성자",
+        authorName: currentUser?.fullName || currentUser?.username || "작성자",
         deletePin: editingId ? undefined : form.deletePin,
       };
       if (editingId) {
@@ -168,6 +241,7 @@ export default function StaffEventsPage() {
     }
   };
 
+
   return (
     <MainLayout>
       <Stack spacing={2}>
@@ -179,12 +253,17 @@ export default function StaffEventsPage() {
           <Button variant="contained" onClick={openCreate}>등록</Button>
         </Stack>
 
-        <Stack direction="row" spacing={1}>
+        <Stack direction="row" spacing={1} alignItems="center">
           <TextField
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
-            placeholder="이름/구분/부서 검색"
+            placeholder="제목/내용/부서 검색"
             fullWidth
+          />
+          <FormControlLabel
+            control={<Checkbox checked={hideNotices} onChange={(e) => setHideNotices(e.target.checked)} />}
+            label="공지 숨기기"
+            sx={{ ml: 0.5, whiteSpace: "nowrap" }}
           />
           <Button
             variant="outlined"
@@ -197,7 +276,7 @@ export default function StaffEventsPage() {
           </Button>
         </Stack>
 
-        {items.map((item) => (
+        {visibleItems.map((item) => (
           <Card key={item.id} onClick={async () => {
             try {
               const found = await fetchStaffBoardPostApi("EVENT", item.id);
@@ -205,22 +284,33 @@ export default function StaffEventsPage() {
             } catch {
               setDetail(item);
             }
-          }} sx={{ borderRadius: 2, border: "1px solid var(--line)", cursor: "pointer" }}>
+          }} sx={{ borderRadius: 2, border: item.postType === "공지" ? "1px solid #1e3a5f" : "1px solid var(--line)", cursor: "pointer", backgroundColor: item.postType === "공지" ? "#244a75" : "#fff" }}>
             <CardContent sx={{ py: 1.25, px: 1.75, "&:last-child": { pb: 1.25 } }}>
-              <Typography sx={{ fontWeight: 800 }}>
-                {(item.subjectName || "-") + " · " + (parseEventType(item) || "-")}
-              </Typography>
-              <Typography sx={{ color: "var(--muted)", fontSize: 12, mt: 0.25 }}>
-                {item.eventDate || "-"} · {item.departmentName || "-"}
-              </Typography>
-              <Typography sx={{ color: "var(--muted)", fontSize: 12, mt: 0.25 }}>
-                No.{item.id} · {item.postType || "일반"} · 작성자 {item.authorName} · 등록 {item.createdAt || "-"}
-              </Typography>
+              <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" spacing={1.25}>
+                <Box sx={{ minWidth: 0, flex: 1 }}>
+                  <Typography sx={{ fontWeight: 800, color: item.postType === "공지" ? "#f8fbff" : "inherit" }}>
+                    {item.title || "-"}
+                  </Typography>
+                  {parseEventDetail(item) ? (
+                    <Typography sx={{ color: item.postType === "공지" ? "rgba(248,251,255,0.8)" : "var(--muted)", fontSize: 12, mt: 0.25, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {parseEventDetail(item)}
+                    </Typography>
+                  ) : null}
+                </Box>
+                <Stack spacing={0.25} sx={{ minWidth: { xs: "auto", md: 180 }, textAlign: { xs: "left", md: "right" } }}>
+                  <Typography sx={{ color: item.postType === "공지" ? "rgba(248,251,255,0.9)" : "var(--muted)", fontSize: 12 }}>
+                    작성자 {item.authorName || "-"}
+                  </Typography>
+                  <Typography sx={{ color: item.postType === "공지" ? "rgba(248,251,255,0.9)" : "var(--muted)", fontSize: 12 }}>
+                    {item.eventDate || "-"}
+                  </Typography>
+                </Stack>
+              </Stack>
             </CardContent>
           </Card>
         ))}
 
-        {!loading && !items.length ? (
+        {!loading && !visibleItems.length ? (
           <Typography sx={{ color: "var(--muted)", textAlign: "center", py: 3 }}>
             {errorMessage || "등록된 경조사가 없습니다."}
           </Typography>
@@ -241,17 +331,45 @@ export default function StaffEventsPage() {
           <DialogTitle>{editingId ? "경조사 수정" : "경조사 등록"}</DialogTitle>
           <DialogContent sx={{ pt: 1 }}>
             <Stack spacing={1.25} sx={{ mt: 0.5 }}>
-              <TextField label="이름" value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} fullWidth />
-              <TextField label="구분" value={form.type} onChange={(e) => setForm((p) => ({ ...p, type: e.target.value }))} fullWidth />
-              <TextField type="date" label="일자" InputLabelProps={{ shrink: true }} value={form.date} onChange={(e) => setForm((p) => ({ ...p, date: e.target.value }))} fullWidth />
-              <TextField label="부서" value={form.dept} onChange={(e) => setForm((p) => ({ ...p, dept: e.target.value }))} fullWidth />
-              <TextField select label="공지 여부" value={form.tag} onChange={(e) => setForm((p) => ({ ...p, tag: e.target.value }))} fullWidth>
-                <MenuItem value="공지">공지</MenuItem>
-                <MenuItem value="일반">일반</MenuItem>
-              </TextField>
-              <TextField label="작성자" value={form.author} onChange={(e) => setForm((p) => ({ ...p, author: e.target.value }))} fullWidth />
+              <TextField label="제목" placeholder="예: 전북대학교 통계학과 김광수 교수 부친상" value={form.title} onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))} fullWidth required />
+              <Tabs
+                value={form.type}
+                onChange={(_, value: string) => setForm((p) => ({ ...p, type: value }))}
+                variant="fullWidth"
+                sx={{ border: "1px solid var(--line)", borderRadius: 2, minHeight: 40, "& .MuiTab-root": { minHeight: 40 } }}
+              >
+                <Tab value="경사" label="경사" />
+                <Tab value="조사" label="조사" />
+              </Tabs>
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={1.25}>
+                <TextField type="date" label="일자" InputLabelProps={{ shrink: true }} value={form.date} onChange={(e) => setForm((p) => ({ ...p, date: e.target.value }))} fullWidth required />
+              </Stack>
+              <TextField label="부서" value={myDeptName || "(부서 정보 없음)"} fullWidth InputProps={{ readOnly: true }} />
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={form.isNotice}
+                    onChange={(e) => setForm((p) => ({ ...p, isNotice: e.target.checked }))}
+                  />
+                }
+                label="공지로 등록"
+              />
+              <TextField label="작성자" value={currentUser?.fullName || currentUser?.username || "작성자"} fullWidth InputProps={{ readOnly: true }} />
+              <TextField label="내용" value={form.detail} onChange={(e) => setForm((p) => ({ ...p, detail: e.target.value }))} multiline minRows={4} fullWidth />
+              <Box sx={{ border: "1px dashed var(--line)", borderRadius: 2, p: 1.25, bgcolor: "rgba(255,255,255,0.65)" }}>
+                <Typography sx={{ fontSize: 12, color: "var(--muted)" }}>미리보기</Typography>
+                <Typography sx={{ fontWeight: 800, mt: 0.25 }}>
+                  {`[${toTypeLabel(form.type || "경사")}] ${form.title.trim() || "제목"}`}
+                </Typography>
+                <Typography sx={{ color: "var(--muted)", fontSize: 12, mt: 0.25 }}>
+                  {`작성자: ${currentUser?.fullName || currentUser?.username || "작성자"} · ${myDeptName || "부서"} · ${form.date || "일자"}`}
+                </Typography>
+                <Typography sx={{ color: "var(--muted)", fontSize: 12, mt: 0.25, whiteSpace: "pre-wrap" }}>
+                  {form.detail.trim() || "내용을 입력하세요."}
+                </Typography>
+              </Box>
               {!editingId ? (
-                <TextField label="삭제 비밀번호(4자리 숫자)" value={form.deletePin} onChange={(e) => setForm((p) => ({ ...p, deletePin: e.target.value.replace(/\D/g, "").slice(0, 4) }))} fullWidth />
+                <TextField type="password" label="삭제 비밀번호(4자리 숫자)" value={form.deletePin} onChange={(e) => setForm((p) => ({ ...p, deletePin: e.target.value.replace(/\D/g, "").slice(0, 4) }))} fullWidth inputProps={{ inputMode: "numeric" }} />
               ) : null}
             </Stack>
           </DialogContent>
@@ -266,12 +384,13 @@ export default function StaffEventsPage() {
           <DialogContent sx={{ pt: 1 }}>
             <Stack spacing={1} sx={{ mt: 0.5 }}>
               <Typography sx={{ fontWeight: 800 }}>
-                {(detail?.subjectName || "-") + " · " + (detail ? parseEventType(detail) : "-")}
+                {detail?.title || "-"}
               </Typography>
               <Typography sx={{ color: "var(--muted)", fontSize: 13 }}>
                 {detail?.eventDate || "-"} · {detail?.departmentName || "-"} · {detail?.postType || "일반"}
               </Typography>
               <Typography>작성자: {detail?.authorName || "-"}</Typography>
+              {detail ? <Typography sx={{ whiteSpace: "pre-wrap" }}>{parseEventDetail(detail) || "(내용 없음)"}</Typography> : null}
             </Stack>
           </DialogContent>
           <DialogActions>

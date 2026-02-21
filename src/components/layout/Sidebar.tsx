@@ -131,18 +131,56 @@ export default function Sidebar({
       );
     };
 
-    if (pathname === "/staff") {
+    if (pathname.startsWith("/staff")) {
       const hasStaffShortcut = sidebarMenus.some((node) => node.path === "/staff");
       if (!hasStaffShortcut) return sidebarMenus;
 
       return sidebarMenus.flatMap((node) => {
         if (node.path !== "/staff") return [node];
-        return [
-          { ...node, id: node.id, name: "의료진", path: "/staff?panel=staff", children: [] },
-          { id: -902, name: "부서 관리", path: "/staff?panel=department", icon: node.icon, children: [] },
-          { id: -903, name: "직책 관리", path: "/staff?panel=position", icon: node.icon, children: [] },
-        ] as MenuNode[];
+        const commonMenus: MenuNode[] = [
+          { ...node, id: -940, code: "STAFF_NOTICE", sortOrder: 1, name: "공지사항", path: "/staff/notices", children: [] },
+          { id: -941, code: "STAFF_SCHEDULE", sortOrder: 2, name: "주요일정", path: "/staff/schedule", icon: node.icon, children: [] },
+          { id: -942, code: "STAFF_EVENTS", sortOrder: 3, name: "경조사", path: "/staff/events", icon: node.icon, children: [] },
+        ];
+
+        if ((userRole || "").toUpperCase().includes("ADMIN")) {
+          commonMenus.push(
+            { id: -943, code: "STAFF_MANAGE", sortOrder: 4, name: "의료진 관리", path: "/staff/dashboard", icon: node.icon, children: [] },
+            { id: -944, code: "STAFF_MASTER", sortOrder: 5, name: "부서/직책 관리", path: "/staff/setting", icon: node.icon, children: [] },
+          );
+        }
+
+        return commonMenus;
       });
+    }
+
+    if (pathname.startsWith("/board")) {
+      const base = makeShortcuts([
+        { id: -950, code: "BOARD_NOTICE", name: "공지사항", path: "/board/notices", sortOrder: 1 },
+        { id: -951, code: "BOARD_SCHEDULE", name: "주요일정", path: "/board/schedule", sortOrder: 2 },
+        { id: -952, code: "BOARD_EVENTS", name: "경조사", path: "/board/events", sortOrder: 3 },
+        { id: -953, code: "BOARD_DOCS", name: "문서함", path: "/board/docs", sortOrder: 4 },
+        { id: -954, code: "BOARD_LEAVE", name: "휴가/근태", path: "/board/leave", sortOrder: 5 },
+        { id: -958, code: "BOARD_TRAINING", name: "교육/이수", path: "/board/training", sortOrder: 9 },
+        { id: -960, code: "BOARD_HANDOVER", name: "인계노트", path: "/board/handover", sortOrder: 11 },
+        { id: -961, code: "BOARD_MEETINGS", name: "회의/위원회", path: "/board/meetings", sortOrder: 12 },
+      ]);
+
+      const shiftsParent: MenuNode = {
+        id: -955,
+        code: "BOARD_SHIFTS",
+        name: "당직/교대표",
+        path: null,
+        sortOrder: 6,
+        icon: fallbackIcon,
+        children: [
+          { id: -956, code: "BOARD_SHIFTS_MONTHLY", name: "당직/교대표(월간)", path: "/board/shifts", sortOrder: 1, icon: fallbackIcon, children: [] },
+          { id: -957, code: "BOARD_SHIFTS_WEEKLY", name: "당직/교대표(주간)", path: "/board/shifts/weekly", sortOrder: 2, icon: fallbackIcon, children: [] },
+          { id: -963, code: "BOARD_SHIFTS_DAILY", name: "당직/교대표(일일)", path: "/board/shifts/daily", sortOrder: 3, icon: fallbackIcon, children: [] },
+        ],
+      };
+
+      return [...base.slice(0, 5), shiftsParent, ...base.slice(5)];
     }
 
     if (pathname.startsWith("/doctor")) {
@@ -169,10 +207,11 @@ export default function Sidebar({
         { id: -932, code: "RECEPTION_EMERGENCY", name: "응급 접수", path: "/reception/emergency", sortOrder: 3 },
         { id: -933, code: "RECEPTION_INPATIENT", name: "입원 접수", path: "/reception/inpatient", sortOrder: 4 },
         { id: -934, code: "RECEPTION_HISTORY", name: "내원 이력", path: "/reception/history", sortOrder: 5 },
-        { id: -935, code: "RECEPTION_PATIENTS", name: "환자 조회", path: "/patients", sortOrder: 6 },
-        { id: -936, code: "RECEPTION_CONSENTS", name: "동의서", path: "/consents", sortOrder: 7 },
-        { id: -937, code: "RECEPTION_INSURANCES", name: "보험", path: "/insurances", sortOrder: 8 },
-        { id: -938, code: "RECEPTION_DISPLAY", name: "진료실 현황", path: "/display", sortOrder: 9 },
+        { id: -939, code: "RECEPTION_EDI", name: "EDI 아이템", path: "/reception/edi-items", sortOrder: 6 },
+        { id: -935, code: "RECEPTION_PATIENTS", name: "환자 조회", path: "/patients", sortOrder: 7 },
+        { id: -936, code: "RECEPTION_CONSENTS", name: "동의서", path: "/consents", sortOrder: 8 },
+        { id: -937, code: "RECEPTION_INSURANCES", name: "보험", path: "/insurances", sortOrder: 9 },
+        { id: -938, code: "RECEPTION_DISPLAY", name: "진료실 현황", path: "/display", sortOrder: 10 },
       ]);
     }
 

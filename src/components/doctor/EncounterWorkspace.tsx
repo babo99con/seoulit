@@ -37,7 +37,7 @@ import AutoFixHighRoundedIcon from "@mui/icons-material/AutoFixHighRounded";
 import NoteAltRoundedIcon from "@mui/icons-material/NoteAltRounded";
 import BrushRoundedIcon from "@mui/icons-material/BrushRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
-import DownloadRoundedIcon from "@mui/icons-material/DownloadRounded";
+import ZoomInRoundedIcon from "@mui/icons-material/ZoomInRounded";
 import AddPhotoAlternateRoundedIcon from "@mui/icons-material/AddPhotoAlternateRounded";
 import {
   activateEncounterApi,
@@ -230,6 +230,7 @@ export default function EncounterWorkspace({
     plan: "",
   });
   const [assets, setAssets] = React.useState<MedicalEncounterAsset[]>([]);
+  const [assetPreviewUrl, setAssetPreviewUrl] = React.useState<string | null>(null);
   const [penOpen, setPenOpen] = React.useState(false);
   const [assetSaving, setAssetSaving] = React.useState(false);
   const [diagnosisQuery, setDiagnosisQuery] = React.useState("");
@@ -1188,37 +1189,55 @@ export default function EncounterWorkspace({
                     <Box sx={{ display: "grid", gap: 1, gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" } }}>
                       {assets.map((asset) => (
                         <Box key={asset.id} sx={{ p: 1, borderRadius: 1.5, border: "1px solid var(--line)", bgcolor: "#fff" }}>
-                          {asset.fileUrl ? (
-                            <Box
-                              component="img"
-                              src={asset.fileUrl}
-                              alt="encounter-asset"
-                              sx={{ width: "100%", height: 160, objectFit: "cover", borderRadius: 1, border: "1px solid var(--line)" }}
-                            />
-                          ) : (
-                            <Box sx={{ width: "100%", height: 160, display: "grid", placeItems: "center", borderRadius: 1, border: "1px dashed var(--line)", color: "var(--muted)", fontSize: 12 }}>
-                              이미지 URL 생성 중
-                            </Box>
-                          )}
-                          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 0.75 }}>
-                            <Typography sx={{ fontSize: 11, color: "var(--muted)" }}>
-                              {asset.assetType === "PEN" ? "펜차트" : "첨부 이미지"} · {formatDateTime(asset.createdAt)}
-                            </Typography>
-                            <Stack direction="row" spacing={0.5}>
-                              <IconButton
-                                size="small"
-                                component="a"
-                                href={asset.fileUrl || undefined}
-                                download={`encounter-${detail.id}-${asset.id}.png`}
-                                disabled={!asset.fileUrl}
-                              >
-                                <DownloadRoundedIcon fontSize="small" />
-                              </IconButton>
-                              <IconButton size="small" color="error" onClick={() => void removeAsset(asset.id)} disabled={assetSaving}>
-                                <DeleteOutlineRoundedIcon fontSize="small" />
-                              </IconButton>
-                            </Stack>
-                          </Stack>
+                          {(() => {
+                            const fileProxyUrl = asset.objectKey
+                              ? `/api/files/patient?key=${encodeURIComponent(asset.objectKey)}`
+                              : "";
+                            return asset.fileUrl ? (
+                              <>
+                                <Box
+                                  component="img"
+                                  src={fileProxyUrl || asset.fileUrl}
+                                  alt="encounter-asset"
+                                  onClick={() => setAssetPreviewUrl(fileProxyUrl || asset.fileUrl || null)}
+                                  sx={{ width: "100%", height: 160, objectFit: "cover", borderRadius: 1, border: "1px solid var(--line)", cursor: "zoom-in" }}
+                                />
+                                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 0.75 }}>
+                                  <Typography sx={{ fontSize: 11, color: "var(--muted)" }}>
+                                    {asset.assetType === "PEN" ? "펜차트" : "첨부 이미지"} · {formatDateTime(asset.createdAt)}
+                                  </Typography>
+                                  <Stack direction="row" spacing={0.5}>
+                                    <IconButton
+                                      size="small"
+                                      onClick={() => setAssetPreviewUrl(fileProxyUrl || asset.fileUrl || null)}
+                                      disabled={!asset.fileUrl}
+                                    >
+                                      <ZoomInRoundedIcon fontSize="small" />
+                                    </IconButton>
+                                    <IconButton size="small" color="error" onClick={() => void removeAsset(asset.id)} disabled={assetSaving}>
+                                      <DeleteOutlineRoundedIcon fontSize="small" />
+                                    </IconButton>
+                                  </Stack>
+                                </Stack>
+                              </>
+                            ) : (
+                              <>
+                                <Box sx={{ width: "100%", height: 160, display: "grid", placeItems: "center", borderRadius: 1, border: "1px dashed var(--line)", color: "var(--muted)", fontSize: 12 }}>
+                                  이미지 URL 생성 중
+                                </Box>
+                                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 0.75 }}>
+                                  <Typography sx={{ fontSize: 11, color: "var(--muted)" }}>
+                                    {asset.assetType === "PEN" ? "펜차트" : "첨부 이미지"} · {formatDateTime(asset.createdAt)}
+                                  </Typography>
+                                  <Stack direction="row" spacing={0.5}>
+                                    <IconButton size="small" color="error" onClick={() => void removeAsset(asset.id)} disabled={assetSaving}>
+                                      <DeleteOutlineRoundedIcon fontSize="small" />
+                                    </IconButton>
+                                  </Stack>
+                                </Stack>
+                              </>
+                            );
+                          })()}
                         </Box>
                       ))}
                       {!assets.length ? (
@@ -1354,6 +1373,23 @@ export default function EncounterWorkspace({
           </Box>
         </Box>
       </Drawer>
+
+      <Dialog open={Boolean(assetPreviewUrl)} onClose={() => setAssetPreviewUrl(null)} fullWidth maxWidth="md">
+        <DialogTitle>이미지 크게 보기</DialogTitle>
+        <DialogContent sx={{ pt: 1 }}>
+          {assetPreviewUrl ? (
+            <Box
+              component="img"
+              src={assetPreviewUrl}
+              alt="encounter-asset-preview"
+              sx={{ width: "100%", maxHeight: "70vh", objectFit: "contain", borderRadius: 1, border: "1px solid var(--line)", bgcolor: "#fff" }}
+            />
+          ) : null}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setAssetPreviewUrl(null)}>닫기</Button>
+        </DialogActions>
+      </Dialog>
 
       <Dialog open={deactivateOpen} onClose={() => setDeactivateOpen(false)} fullWidth maxWidth="sm">
         <DialogTitle>진료 비활성 처리</DialogTitle>

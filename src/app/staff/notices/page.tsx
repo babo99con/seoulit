@@ -7,10 +7,12 @@ import {
   Button,
   Card,
   CardContent,
+  Checkbox,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
+  FormControlLabel,
   MenuItem,
   Pagination,
   Stack,
@@ -28,6 +30,7 @@ import {
 } from "@/lib/staffBoardApi";
 
 const PAGE_SIZE = 10;
+const PINNED_NOTICE_COUNT = 5;
 
 export default function StaffNoticesPage() {
   const currentUser = React.useMemo(() => getSessionUser(), []);
@@ -43,14 +46,29 @@ export default function StaffNoticesPage() {
   const [deletePinInput, setDeletePinInput] = React.useState("");
   const [loading, setLoading] = React.useState(false);
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
+  const [hideNotices, setHideNotices] = React.useState(false);
   const [form, setForm] = React.useState({
     title: "",
     tag: "공지",
     date: "",
     content: "",
-    author: "",
     deletePin: "",
   });
+
+  const visibleItems = React.useMemo(() => {
+    const notices = items.filter((item) => item.postType === "공지" || item.postType === "필독");
+    const normals = items.filter((item) => item.postType !== "공지" && item.postType !== "필독");
+
+    if (hideNotices) {
+      const start = (page - 1) * PAGE_SIZE;
+      return normals.slice(start, start + PAGE_SIZE);
+    }
+
+    const pinned = notices.slice(0, PINNED_NOTICE_COUNT);
+    const normalSlots = Math.max(1, PAGE_SIZE - pinned.length);
+    const normalStart = (page - 1) * normalSlots;
+    return [...pinned, ...normals.slice(normalStart, normalStart + normalSlots)];
+  }, [hideNotices, items, page]);
 
   const loadPage = React.useCallback(async (nextPage: number, nextKeyword: string) => {
     setLoading(true);
@@ -59,12 +77,19 @@ export default function StaffNoticesPage() {
       const result = await fetchStaffBoardPageApi({
         category: "NOTICE",
         keyword: nextKeyword,
-        page: nextPage - 1,
-        size: PAGE_SIZE,
+        page: 0,
+        size: 500,
       });
-      setItems(result.items || []);
-      setPage(result.page + 1);
-      setPageCount(Math.max(1, result.totalPages || 1));
+      const rows = result.items || [];
+      const noticeCount = rows.filter((item) => item.postType === "공지" || item.postType === "필독").length;
+      const normalCount = rows.length - noticeCount;
+      const pinnedCount = hideNotices ? 0 : Math.min(PINNED_NOTICE_COUNT, noticeCount);
+      const normalSlots = hideNotices ? PAGE_SIZE : Math.max(1, PAGE_SIZE - pinnedCount);
+      const totalPages = Math.max(1, Math.ceil(normalCount / normalSlots));
+
+      setItems(rows);
+      setPage(Math.min(nextPage, totalPages));
+      setPageCount(totalPages);
     } catch (error) {
       setItems([]);
       setPageCount(1);
@@ -72,11 +97,11 @@ export default function StaffNoticesPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [hideNotices]);
 
   React.useEffect(() => {
-    void loadPage(1, "");
-  }, [loadPage]);
+    void loadPage(1, keyword);
+  }, [hideNotices, keyword, loadPage]);
 
   const isOwner = React.useCallback(
     (item: StaffBoardPost) => {
@@ -94,7 +119,6 @@ export default function StaffNoticesPage() {
       tag: "공지",
       date: new Date().toISOString().slice(0, 10),
       content: "",
-      author: currentUser?.fullName || currentUser?.username || "작성자",
       deletePin: "",
     });
     setOpen(true);
@@ -108,7 +132,6 @@ export default function StaffNoticesPage() {
       tag: item.postType || "공지",
       date: item.eventDate || "",
       content: item.content || "",
-      author: item.authorName,
       deletePin: "",
     });
     setOpen(true);
@@ -128,7 +151,7 @@ export default function StaffNoticesPage() {
         content: form.content.trim(),
         eventDate: form.date,
         authorId: currentUser?.username || "",
-        authorName: form.author.trim() || currentUser?.fullName || currentUser?.username || "작성자",
+        authorName: currentUser?.fullName || currentUser?.username || "작성자",
         deletePin: editingId ? undefined : form.deletePin,
       };
       if (editingId) {
@@ -177,12 +200,17 @@ export default function StaffNoticesPage() {
           <Button variant="contained" onClick={openCreate}>등록</Button>
         </Stack>
 
-        <Stack direction="row" spacing={1}>
+        <Stack direction="row" spacing={1} alignItems="center">
           <TextField
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             placeholder="제목/내용 검색"
             fullWidth
+          />
+          <FormControlLabel
+            control={<Checkbox checked={hideNotices} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setHideNotices(e.target.checked)} />}
+            label="공지 숨기기"
+            sx={{ ml: 0.5, whiteSpace: "nowrap" }}
           />
           <Button
             variant="outlined"
@@ -195,33 +223,45 @@ export default function StaffNoticesPage() {
           </Button>
         </Stack>
 
-        {items.map((item) => (
+        {visibleItems.map((item) => (
           <Card
             key={item.id}
             onClick={() => void openDetail(item)}
             sx={{
               borderRadius: 2,
-              border: "1px solid var(--line)",
+              border: item.postType === "필독" || item.postType === "공지" ? "1px solid #1e3a5f" : "1px solid var(--line)",
               cursor: "pointer",
-              bgcolor: item.postType === "필독" || item.postType === "공지" ? "#e8f0ff" : "#ffffff",
+              bgcolor: item.postType === "필독" || item.postType === "공지" ? "#244a75" : "#ffffff",
             }}
           >
             <CardContent sx={{ py: 1.25, px: 1.75, "&:last-child": { pb: 1.25 } }}>
-              <Typography sx={{ fontWeight: 800, fontSize: 20 }}>
-                {item.postType === "필독"
-                  ? `[필독] ${item.title}`
-                  : item.postType === "공지"
-                  ? `[공지] ${item.title}`
-                  : item.title}
-              </Typography>
-              <Typography sx={{ color: "var(--muted)", fontSize: 12, mt: 0.25 }}>
-                No.{item.id} · {item.postType || "일반"} · 작성자 {item.authorName} · 게시일 {item.eventDate || "-"} · 등록 {item.createdAt || "-"}
-              </Typography>
+              <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" spacing={1.25}>
+                <Box sx={{ minWidth: 0, flex: 1 }}>
+                  <Typography sx={{ fontWeight: 800, fontSize: 20, color: item.postType === "필독" || item.postType === "공지" ? "#f8fbff" : "inherit" }}>
+                    {item.postType === "필독"
+                      ? `[필독] ${item.title}`
+                      : item.postType === "공지"
+                      ? `[공지] ${item.title}`
+                      : item.title}
+                  </Typography>
+                  <Typography sx={{ color: item.postType === "필독" || item.postType === "공지" ? "rgba(248,251,255,0.82)" : "var(--muted)", fontSize: 12, mt: 0.25, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {item.content || "(내용 없음)"}
+                  </Typography>
+                </Box>
+                <Stack spacing={0.25} sx={{ minWidth: { xs: "auto", md: 210 }, textAlign: { xs: "left", md: "right" } }}>
+                  <Typography sx={{ color: item.postType === "필독" || item.postType === "공지" ? "rgba(248,251,255,0.9)" : "var(--muted)", fontSize: 12 }}>
+                    작성자 {item.authorName || "-"}
+                  </Typography>
+                  <Typography sx={{ color: item.postType === "필독" || item.postType === "공지" ? "rgba(248,251,255,0.9)" : "var(--muted)", fontSize: 12 }}>
+                    게시일 {item.eventDate || "-"}
+                  </Typography>
+                </Stack>
+              </Stack>
             </CardContent>
           </Card>
         ))}
 
-        {!loading && !items.length ? (
+        {!loading && !visibleItems.length ? (
           <Typography sx={{ color: "var(--muted)", textAlign: "center", py: 3 }}>
             {errorMessage || "등록된 공지사항이 없습니다."}
           </Typography>
@@ -232,7 +272,7 @@ export default function StaffNoticesPage() {
             count={pageCount}
             page={page}
             onChange={(_, value) => {
-              void loadPage(value, keyword);
+              setPage(value);
             }}
             color="primary"
           />
@@ -242,20 +282,34 @@ export default function StaffNoticesPage() {
           <DialogTitle>{editingId ? "공지사항 수정" : "공지사항 등록"}</DialogTitle>
           <DialogContent sx={{ pt: 1 }}>
             <Stack spacing={1.25} sx={{ mt: 0.5 }}>
-              <TextField label="제목" value={form.title} onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))} fullWidth />
               <TextField select label="구분" value={form.tag} onChange={(e) => setForm((p) => ({ ...p, tag: e.target.value }))} fullWidth>
                 <MenuItem value="필독">필독</MenuItem>
                 <MenuItem value="공지">공지</MenuItem>
                 <MenuItem value="일반">일반</MenuItem>
               </TextField>
+              <TextField label="제목" value={form.title} onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))} fullWidth />
               <TextField type="date" label="게시일" InputLabelProps={{ shrink: true }} value={form.date} onChange={(e) => setForm((p) => ({ ...p, date: e.target.value }))} fullWidth />
               <TextField label="내용" value={form.content} onChange={(e) => setForm((p) => ({ ...p, content: e.target.value }))} multiline minRows={4} fullWidth />
-              <TextField label="작성자" value={form.author} onChange={(e) => setForm((p) => ({ ...p, author: e.target.value }))} fullWidth />
+              <TextField label="작성자" value={currentUser?.fullName || currentUser?.username || "작성자"} fullWidth InputProps={{ readOnly: true }} />
+              <Box sx={{ border: "1px dashed var(--line)", borderRadius: 2, p: 1.25, bgcolor: "rgba(255,255,255,0.65)" }}>
+                <Typography sx={{ fontSize: 12, color: "var(--muted)" }}>미리보기</Typography>
+                <Typography sx={{ fontWeight: 800, mt: 0.25 }}>
+                  {`[${form.tag || "구분"}] ${form.title.trim() || "제목"}`}
+                </Typography>
+                <Typography sx={{ color: "var(--muted)", fontSize: 12, mt: 0.25 }}>
+                  {`작성자: ${currentUser?.fullName || currentUser?.username || "작성자"} · 게시일: ${form.date || "일자"}`}
+                </Typography>
+                <Typography sx={{ color: "var(--muted)", fontSize: 12, mt: 0.25, whiteSpace: "pre-wrap" }}>
+                  {form.content.trim() || "내용을 입력하세요."}
+                </Typography>
+              </Box>
               {!editingId ? (
                 <TextField
+                  type="password"
                   label="삭제 비밀번호(4자리 숫자)"
                   value={form.deletePin}
                   onChange={(e) => setForm((p) => ({ ...p, deletePin: e.target.value.replace(/\D/g, "").slice(0, 4) }))}
+                  inputProps={{ inputMode: "numeric" }}
                   fullWidth
                 />
               ) : null}
@@ -301,9 +355,11 @@ export default function StaffNoticesPage() {
           <DialogTitle>공지 삭제</DialogTitle>
           <DialogContent sx={{ pt: 1 }}>
             <TextField
+              type="password"
               label="삭제 비밀번호(4자리 숫자)"
               value={deletePinInput}
               onChange={(e) => setDeletePinInput(e.target.value.replace(/\D/g, "").slice(0, 4))}
+              inputProps={{ inputMode: "numeric" }}
               fullWidth
             />
           </DialogContent>

@@ -308,9 +308,11 @@ public class StaffServiceImpl implements StaffService {
 
         Long prevDeptId = staff.getDeptId();
         Long prevPositionId = staff.getPositionId();
+        String prevDomainRole = staff.getDomainRole();
 
         staff.setDeptId(deptId);
         staff.setPositionId(positionId);
+        staff.setDomainRole(resolveDomainRoleByAssignment(deptId, positionId, prevDomainRole));
         staff.setUpdatedAt(new Date());
         StaffEntity saved = staffRepository.save(staff);
 
@@ -319,6 +321,9 @@ public class StaffServiceImpl implements StaffService {
         }
         if (!Objects.equals(prevPositionId, positionId)) {
             saveHistory(id, "ASSIGNMENT_CHANGE", "POSITION_ID", valueOf(prevPositionId), valueOf(positionId), reason, changedBy);
+        }
+        if (!Objects.equals(valueOf(prevDomainRole), valueOf(saved.getDomainRole()))) {
+            saveHistory(id, "ASSIGNMENT_CHANGE", "DOMAIN_ROLE", valueOf(prevDomainRole), valueOf(saved.getDomainRole()), reason, changedBy);
         }
 
         return saved;
@@ -472,6 +477,34 @@ public class StaffServiceImpl implements StaffService {
                 throw new IllegalArgumentException("Inactive position cannot be assigned: " + positionId);
             }
         }
+    }
+
+    private String resolveDomainRoleByAssignment(Long deptId, Long positionId, String fallbackRole) {
+        String normalizedFallback = fallbackRole == null ? "" : fallbackRole.trim().toUpperCase();
+        if ("ADMIN".equals(normalizedFallback)) {
+            return "ADMIN";
+        }
+
+        PositionsEntity position = null;
+        if (positionId != null) {
+            position = positionRepository.findById(positionId).orElse(null);
+        }
+
+        String title = position == null || position.getTitle() == null ? "" : position.getTitle().toLowerCase();
+        if (title.contains("의사") || title.contains("doctor")) return "DOCTOR";
+        if (title.contains("간호") || title.contains("nurse")) return "NURSE";
+        if (title.contains("원무") || title.contains("접수") || title.contains("reception")) return "RECEPTION";
+
+        DepartmentsEntity department = null;
+        if (deptId != null) {
+            department = departmentRepository.findById(deptId).orElse(null);
+        }
+        String deptName = department == null || department.getName() == null ? "" : department.getName().toLowerCase();
+        if (deptName.contains("진료") || deptName.contains("의국") || deptName.contains("doctor")) return "DOCTOR";
+        if (deptName.contains("간호") || deptName.contains("nurse")) return "NURSE";
+        if (deptName.contains("원무") || deptName.contains("접수") || deptName.contains("reception")) return "RECEPTION";
+
+        return normalizedFallback.isEmpty() ? "STAFF" : normalizedFallback;
     }
 
     private void saveHistory(int staffId,

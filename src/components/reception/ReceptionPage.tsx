@@ -29,6 +29,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableContainer,
   TableHead,
   TableRow,
   Tabs,
@@ -953,17 +954,18 @@ export default function ReceptionPage({ mode, title }: Props) {
                 <Tab value="ALL" label="전체" />
               </Tabs>
 
-              <Table size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell>시간</TableCell>
-                    <TableCell>환자</TableCell>
-                    <TableCell>진료과</TableCell>
-                    <TableCell>상태</TableCell>
-                    <TableCell align="right">조치</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
+              <TableContainer sx={{ overflowX: "auto" }}>
+                <Table size="small" sx={{ minWidth: 640 }}>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>시간</TableCell>
+                      <TableCell>환자</TableCell>
+                      <TableCell>진료과</TableCell>
+                      <TableCell>상태</TableCell>
+                      <TableCell align="right">조치</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
                   {visitFiltered.map((v) => (
                     <TableRow
                       key={v.id}
@@ -1029,17 +1031,18 @@ export default function ReceptionPage({ mode, title }: Props) {
                     </TableRow>
                   ))}
 
-                  {!visitLoading && visitFiltered.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={5}>
-                        <Typography variant="body2" color="text.secondary">
-                          검색 조건에 맞는 접수 내역이 없습니다.
-                        </Typography>
-                      </TableCell>
-                    </TableRow>
-                  ) : null}
-                </TableBody>
-              </Table>
+                    {!visitLoading && visitFiltered.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={5}>
+                          <Typography variant="body2" color="text.secondary">
+                            검색 조건에 맞는 접수 내역이 없습니다.
+                          </Typography>
+                        </TableCell>
+                      </TableRow>
+                    ) : null}
+                  </TableBody>
+                </Table>
+              </TableContainer>
             </Paper>
           </Grid>
         </Grid>
@@ -1138,7 +1141,8 @@ export default function ReceptionPage({ mode, title }: Props) {
           <DialogActions>
             <Button onClick={() => setPatientSearchOpen(false)}>닫기</Button>
           </DialogActions>
-        </Dialog>`n`n        <Dialog open={cancelDialogOpen} onClose={() => setCancelDialogOpen(false)} fullWidth maxWidth="sm">
+        </Dialog>
+        <Dialog open={cancelDialogOpen} onClose={() => setCancelDialogOpen(false)} fullWidth maxWidth="sm">
           <DialogTitle>접수 취소</DialogTitle>
           <DialogContent>
             <TextField

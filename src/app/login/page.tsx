@@ -36,6 +36,12 @@ import {
   sendRegisterEmailCodeApi,
   verifyRegisterEmailCodeApi,
 } from "@/lib/authApi";
+import {
+  fetchDepartmentsApi,
+  fetchMyStaffProfileApi,
+  fetchPositionsApi,
+} from "@/lib/staffApi";
+import { deriveOperationalRole } from "@/lib/roleAccess";
 import { saveSession, saveSessionUserOnly } from "@/lib/session";
 
 const SAVED_USERNAME_KEY = "login.savedUsername";
@@ -82,6 +88,40 @@ export default function LoginPage() {
   const [onboardingStep, setOnboardingStep] = useState(0);
   const [themeMode, setThemeMode] = useState<"light" | "dark" | "system">("system");
   const [prefersDark, setPrefersDark] = useState(false);
+
+  const resolveOperationalRole = async (
+    authRole: string,
+    profile: {
+      domainRole?: string | null;
+      positionName?: string | null;
+      departmentName?: string | null;
+      positionId?: number | null;
+      deptId?: number | null;
+    }
+  ) => {
+    let resolved = deriveOperationalRole(
+      authRole,
+      profile.domainRole,
+      profile.positionName,
+      profile.departmentName
+    );
+    if (resolved !== "STAFF") return resolved;
+
+    if (!profile.positionName && !profile.departmentName && (profile.positionId || profile.deptId)) {
+      const [positions, departments] = await Promise.all([
+        fetchPositionsApi(false).catch(() => []),
+        fetchDepartmentsApi(false).catch(() => []),
+      ]);
+      const positionName = profile.positionId
+        ? positions.find((p) => p.id === profile.positionId)?.title
+        : undefined;
+      const departmentName = profile.deptId
+        ? departments.find((d) => d.id === profile.deptId)?.name
+        : undefined;
+      resolved = deriveOperationalRole(authRole, profile.domainRole, positionName, departmentName);
+    }
+    return resolved;
+  };
 
   const resolvedTheme = themeMode === "system" ? (prefersDark ? "dark" : "light") : themeMode;
   const isDark = resolvedTheme === "dark";
@@ -150,7 +190,16 @@ export default function LoginPage() {
       try {
         const me = await getMeApi();
         if (!mounted) return;
-        saveSessionUserOnly(me, { passwordChangeRequired: false });
+        let resolvedRole = me.role;
+        if (deriveOperationalRole(me.role) === "STAFF") {
+          try {
+            const profile = await fetchMyStaffProfileApi();
+            resolvedRole = await resolveOperationalRole(me.role, profile);
+          } catch {
+            // ignore and fallback to auth role
+          }
+        }
+        saveSessionUserOnly({ ...me, role: resolvedRole }, { passwordChangeRequired: false });
         router.push("/");
       } catch {
         if (!mounted) return;
@@ -203,7 +252,16 @@ export default function LoginPage() {
       } else {
         window.localStorage.removeItem(SAVED_USERNAME_KEY);
       }
-      saveSession(result.accessToken, result.user, {
+      let resolvedRole = result.user.role;
+      if (deriveOperationalRole(result.user.role) === "STAFF") {
+        try {
+          const profile = await fetchMyStaffProfileApi();
+          resolvedRole = await resolveOperationalRole(result.user.role, profile);
+        } catch {
+          // ignore and fallback to auth role
+        }
+      }
+      saveSession(result.accessToken, { ...result.user, role: resolvedRole }, {
         passwordChangeRequired: result.passwordChangeRequired,
       });
       if (result.passwordChangeRequired) {

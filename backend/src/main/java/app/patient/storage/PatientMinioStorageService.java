@@ -5,8 +5,10 @@ import io.minio.BucketExistsArgs;
 import io.minio.GetPresignedObjectUrlArgs;
 import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
+import io.minio.GetObjectArgs;
 import io.minio.PutObjectArgs;
 import io.minio.RemoveObjectArgs;
+import io.minio.StatObjectArgs;
 import io.minio.http.Method;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -91,6 +93,42 @@ public class PatientMinioStorageService implements PatientStorageService {
             );
         } catch (Exception e) {
             throw new RuntimeException("MinIO presigned URL 생성 실패", e);
+        }
+    }
+
+    @Override
+    public java.io.InputStream openStream(String objectKey) {
+        if (!StringUtils.hasText(objectKey)) {
+            throw new IllegalArgumentException("objectKey is required");
+        }
+        try {
+            return minioClient.getObject(
+                    GetObjectArgs.builder()
+                            .bucket(minioProps.getBucketPatient())
+                            .object(objectKey)
+                            .build()
+            );
+        } catch (Exception e) {
+            throw new RuntimeException("MinIO 파일 조회 실패", e);
+        }
+    }
+
+    @Override
+    public String getContentType(String objectKey) {
+        if (!StringUtils.hasText(objectKey)) {
+            return "application/octet-stream";
+        }
+        try {
+            return minioClient
+                    .statObject(
+                            StatObjectArgs.builder()
+                                    .bucket(minioProps.getBucketPatient())
+                                    .object(objectKey)
+                                    .build()
+                    )
+                    .contentType();
+        } catch (Exception e) {
+            return "application/octet-stream";
         }
     }
 
